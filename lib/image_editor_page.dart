@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:mime/mime.dart';
 import 'gemini_service.dart';
+import 'result_page.dart';
 
 class ImageEditorPage extends StatefulWidget {
   const ImageEditorPage({super.key});
@@ -19,8 +19,8 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   
   XFile? _image;
   Uint8List? _imageBytes;
-  String? _result;
   bool _isLoading = false;
+  Map<String, dynamic>? _lastResult;
 
   @override
   void dispose() {
@@ -35,38 +35,66 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       setState(() {
         _image = image;
         _imageBytes = bytes;
-        _result = null;
       });
     }
   }
 
   Future<void> _analyzeImage() async {
-    if (_imageBytes == null) return;
-
     setState(() {
       _isLoading = true;
-      _result = null;
     });
 
     String prompt = _promptController.text.trim();
     if (prompt.isEmpty) {
-      prompt = 'Describe this image details.';
+      prompt = _imageBytes != null ? 'Describe this image details.' : 'Hello, who are you?';
     }
 
-    String? mimeType = _image?.mimeType;
-    if (mimeType == null && _image != null) {
-      mimeType = lookupMimeType(_image!.path);
+    String? mimeType;
+    if (_imageBytes != null) {
+      mimeType = _image?.mimeType;
+      if (mimeType == null && _image != null) {
+        mimeType = lookupMimeType(_image!.path);
+      }
+      // Fallback if lookup fails
+      mimeType ??= 'image/jpeg';
     }
-    // Fallback if lookup fails
-    mimeType ??= 'image/jpeg';
 
+    final  resultMap = await _geminiService.analyzeImage(prompt, _imageBytes, mimeType);
+    final resultText = resultMap['text'] as String?;
+    final resultImage = resultMap['image'] as Uint8List?;
+    
+    print('Analysis result received: text=${resultText?.substring(0, (resultText.length > 20 ? 20 : resultText.length))}..., image=${resultImage?.length} bytes');
 
-    final result = await _geminiService.analyzeImage(prompt, _imageBytes!, mimeType);
+    if (!mounted) return;
 
     setState(() {
         _isLoading = false;
-        _result = result;
+        if (resultText != null || resultImage != null) {
+           _lastResult = {
+             'text': resultText ?? '',
+             'originalImage': _imageBytes,
+             'generatedImage': resultImage
+           };
+        }
     });
+
+    if (_lastResult != null) {
+      print('Navigating to ResultPage');
+      _navigateToResult();
+    }
+  }
+
+  void _navigateToResult() {
+    if (_lastResult == null) return;
+    Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ResultPage(
+            originalImageBytes: _lastResult!['originalImage'],
+            generatedImageBytes: _lastResult!['generatedImage'],
+            text: _lastResult!['text'],
+          ),
+        ),
+      );
   }
 
   @override
@@ -75,6 +103,14 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       appBar: AppBar(
         title: const Text('AI Image Assistant'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          if (_lastResult != null)
+            IconButton(
+              onPressed: _navigateToResult,
+              icon: const Icon(Icons.arrow_forward),
+              tooltip: 'Show Last Result',
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -91,9 +127,42 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
               child: _imageBytes != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.memory(
-                        _imageBytes!,
-                        fit: BoxFit.contain,
+                      child: InkWell(
+                        onTap: () {
+                           showDialog(
+                              context: context,
+                              builder: (context) => Dialog(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    AppBar(
+                                      title: const Text('Original Image'),
+                                      automaticallyImplyLeading: false,
+                                      actions: [
+                                        IconButton(
+                                          icon: const Icon(Icons.close),
+                                          onPressed: () => Navigator.of(context).pop(),
+                                        ),
+                                      ],
+                                    ),
+                                    Flexible(
+                                      child: InteractiveViewer(
+                                        child: Image.memory(
+                                          _imageBytes!,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                        },
+                        child: Image.memory(
+                          _imageBytes!,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     )
                   : const Center(
@@ -121,7 +190,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: _imageBytes == null || _isLoading ? null : _analyzeImage,
+              onPressed: _isLoading ? null : _analyzeImage,
               icon: _isLoading 
                   ? const SizedBox(
                       width: 20, 
@@ -131,23 +200,6 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
                   : const Icon(Icons.send),
               label: const Text('Ask Gemini'),
             ),
-            const SizedBox(height: 24),
-            if (_result != null) ...[
-              const Text(
-                'Result:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: MarkdownBody(data: _result!),
-              ),
-            ],
           ],
         ),
       ),

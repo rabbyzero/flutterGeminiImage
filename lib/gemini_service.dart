@@ -1,14 +1,17 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:socks5_proxy/socks_client.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 class GeminiService {
-  GenerativeModel? _model;
+  String? _apiKey;
+  http.Client? _httpClient;
   bool _isInit = false;
+  
+  final String _modelName = 'gemini-2.5-flash-image';
 
   GeminiService();
 
@@ -17,9 +20,9 @@ class GeminiService {
     
     try {
       final apiKey = await rootBundle.loadString('assets/api_key.txt');
-      final cleanedKey = apiKey.trim();
+      _apiKey = apiKey.trim();
       
-      if (cleanedKey.isEmpty || cleanedKey == 'YOUR_API_KEY_HERE') {
+      if (_apiKey!.isEmpty || _apiKey == 'YOUR_API_KEY_HERE') {
         throw Exception('API Key not set in assets/api_key.txt');
       }
 
@@ -74,11 +77,7 @@ class GeminiService {
         print('Proxy config ignored or empty: $e');
       }
 
-      _model = GenerativeModel(
-        model: 'gemini-1.5-flash',
-        apiKey: cleanedKey,
-        httpClient: httpClient,
-      );
+      _httpClient = httpClient;
       _isInit = true;
     } catch (e) {
       // Re-throw or handle initialization errors
@@ -86,24 +85,99 @@ class GeminiService {
     }
   }
 
-  Future<String?> analyzeImage(String prompt, Uint8List imageBytes, String mimeType) async {
+  Future<Map<String, dynamic>> analyzeImage(String prompt, Uint8List? imageBytes, String? mimeType) async {
     try {
       await _init();
-      if (_model == null) {
-        return 'Error: Gemini model could not be initialized.';
-      }
-
-      final content = [
-        Content.multi([
-          TextPart(prompt),
-          DataPart(mimeType, imageBytes),
-        ])
+      
+      final client = _httpClient ?? http.Client();
+      final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/$_modelName:generateContent?key=$_apiKey');
+      
+      final parts = <Map<String, dynamic>>[
+        {'text': prompt}
       ];
 
-      final response = await _model!.generateContent(content);
-      return response.text;
+      if (imageBytes != null && mimeType != null) {
+        parts.add({
+          'inline_data': {
+            'mime_type': mimeType,
+            'data': base64Encode(imageBytes)
+          }
+        });
+      }
+
+      final requestBody = {
+        'contents': [
+          {
+            'parts': parts
+          }
+        ]
+      };
+
+      print('Request Content: Prompt="$prompt", ImageBytes=${imageBytes?.length ?? "null"}, MimeType="${mimeType ?? "null"}"');
+
+      final response = await client.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+
+      print('Response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        try {
+          final candidates = jsonResponse['candidates'] as List?;
+          if (candidates != null && candidates.isNotEmpty) {
+            final candidate = candidates[0];
+            final content = candidate['content'];
+            if (content != null) {
+              final parts = content['parts'] as List?;
+              if (parts != null && parts.isNotEmpty) {
+                String? generatedText;
+                Uint8List? generatedImage;
+
+                for (var part in parts) {
+                  print('Part keys: ${part.keys}');
+                  if (part.containsKey('text')) {
+                    generatedText = (generatedText ?? '') + part['text'];
+                  }
+                  
+                  // Handle both snake_case (API spec) and camelCase (observed in some responses)
+                  final inlineData = part['inline_data'] ?? part['inlineData'];
+                  if (inlineData != null) {
+                    if (inlineData.containsKey('data')) {
+                      generatedImage = base64Decode(inlineData['data']);
+                    } else {
+                      print('inlineData key found, but missing "data" field. Keys: ${inlineData.keys}');
+                    }
+                  }
+                }
+                
+                if (generatedText == null && generatedImage == null) {
+                  return {'text': 'Debug: Parsed parts but found no content. Raw parts: $parts'};
+                }
+
+                return {
+                  'text': generatedText,
+                  'image': generatedImage,
+                };
+              }
+            }
+          }
+          if (jsonResponse['promptFeedback'] != null) {
+             return {'text': "Safety Block: ${jsonResponse['promptFeedback']}"};
+          }
+          return {'text': 'No text generated. Response: $jsonResponse'};
+        } catch (e) {
+             print('Parsing error: $e');
+             return {'text': 'Error parsing response: $e'};
+        }
+      } else {
+        print('Gemini API Error: ${response.statusCode} ${response.body}');
+        return {'text': 'Error: API returned ${response.statusCode}: ${response.body}'};
+      }
     } catch (e) {
-      return 'Error: $e';
+      return {'text': 'Error: $e'};
     }
   }
 }
