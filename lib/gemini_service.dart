@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import 'package:socks5_proxy/socks_client.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
@@ -31,17 +32,42 @@ class GeminiService {
         
         if (proxyAddress.isNotEmpty) {
            final client = HttpClient();
-           // Remove protocol if present (socks5://)
-           var hostPort = proxyAddress;
-           if (hostPort.contains('://')) {
-             hostPort = hostPort.split('://').last;
+           
+           var uriStr = proxyAddress;
+           if (!uriStr.contains('://')) {
+             uriStr = 'socks5://$uriStr';
+           }
+           
+           final uri = Uri.tryParse(uriStr);
+           if (uri != null && uri.host.isNotEmpty) {
+             final host = uri.host;
+             final port = uri.port != 0 && uri.port != -1 ? uri.port : 1080;
+             
+             String? username;
+             String? password;
+             
+             if (uri.userInfo.isNotEmpty) {
+               final authParts = uri.userInfo.split(':');
+               username = authParts[0];
+               if (authParts.length > 1) {
+                 password = authParts[1];
+               }
+             }
+
+             try {
+               final endpoints = await InternetAddress.lookup(host);
+               if (endpoints.isNotEmpty) {
+                 SocksTCPClient.assignToHttpClient(client, [
+                   ProxySettings(endpoints.first, port, password: password, username: username),
+                 ]);
+                 print('Using SOCKS5 proxy: $host:$port');
+               }
+             } catch (e) {
+               print('Failed to resolve proxy host: $e');
+             }
            }
 
-           client.findProxy = (uri) {
-             return "SOCKS5 $hostPort; DIRECT";
-           };
            httpClient = IOClient(client);
-           print('Using SOCKS5 proxy: $hostPort');
         }
       } catch (e) {
         // Proxy file might not exist or be readable, ignore.
