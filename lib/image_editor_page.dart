@@ -17,8 +17,8 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _promptController = TextEditingController();
   
-  XFile? _image;
-  Uint8List? _imageBytes;
+  List<XFile> _images = [];
+  List<Uint8List> _imageBytesList = [];
   bool _isLoading = false;
   Map<String, dynamic>? _lastResult;
 
@@ -28,13 +28,17 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      final bytes = await image.readAsBytes();
+  Future<void> _pickImages() async {
+    final List<XFile> images = await _picker.pickMultiImage();
+    if (images.isNotEmpty) {
+      final List<Uint8List> bytesList = [];
+      for (var image in images) {
+        final bytes = await image.readAsBytes();
+        bytesList.add(bytes);
+      }
       setState(() {
-        _image = image;
-        _imageBytes = bytes;
+        _images = images;
+        _imageBytesList = bytesList;
       });
     }
   }
@@ -46,20 +50,20 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
 
     String prompt = _promptController.text.trim();
     if (prompt.isEmpty) {
-      prompt = _imageBytes != null ? 'Describe this image details.' : 'Hello, who are you?';
+      prompt = _imageBytesList.isNotEmpty ? 'Describe these images in detail.' : 'Hello, who are you?';
     }
 
-    String? mimeType;
-    if (_imageBytes != null) {
-      mimeType = _image?.mimeType;
-      if (mimeType == null && _image != null) {
-        mimeType = lookupMimeType(_image!.path);
+    List<String?> mimeTypes = [];
+    for (var i = 0; i < _images.length; i++) {
+      String? mimeType = _images[i].mimeType;
+      if (mimeType == null) {
+        mimeType = lookupMimeType(_images[i].path);
       }
-      // Fallback if lookup fails
       mimeType ??= 'image/jpeg';
+      mimeTypes.add(mimeType);
     }
 
-    final  resultMap = await _geminiService.analyzeImage(prompt, _imageBytes, mimeType);
+    final  resultMap = await _geminiService.analyzeImages(prompt, _imageBytesList, mimeTypes);
     final resultText = resultMap['text'] as String?;
     final resultImage = resultMap['image'] as Uint8List?;
     
@@ -72,7 +76,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
         if (resultText != null || resultImage != null) {
            _lastResult = {
              'text': resultText ?? '',
-             'originalImage': _imageBytes,
+             'originalImages': _imageBytesList,
              'generatedImage': resultImage
            };
         }
@@ -89,7 +93,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => ResultPage(
-            originalImageBytes: _lastResult!['originalImage'],
+            originalImageBytesList: _lastResult!['originalImages'],
             generatedImageBytes: _lastResult!['generatedImage'],
             text: _lastResult!['text'],
           ),
@@ -124,59 +128,89 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
                 borderRadius: BorderRadius.circular(12),
                 color: Colors.grey[200],
               ),
-              child: _imageBytes != null
+              child: _imageBytesList.isNotEmpty
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: InkWell(
-                        onTap: () {
-                           showDialog(
-                              context: context,
-                              builder: (context) => Dialog(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    AppBar(
-                                      title: const Text('Original Image'),
-                                      automaticallyImplyLeading: false,
-                                      actions: [
-                                        IconButton(
-                                          icon: const Icon(Icons.close),
-                                          onPressed: () => Navigator.of(context).pop(),
-                                        ),
-                                      ],
-                                    ),
-                                    Flexible(
-                                      child: InteractiveViewer(
-                                        child: Image.memory(
-                                          _imageBytes!,
-                                          fit: BoxFit.contain,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _imageBytesList.length,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Stack(
+                              children: [
+                                InkWell(
+                                  onTap: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => Dialog(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [
+                                            AppBar(
+                                              title: Text('Image ${index + 1}'),
+                                              automaticallyImplyLeading: false,
+                                              actions: [
+                                                IconButton(
+                                                  icon: const Icon(Icons.close),
+                                                  onPressed: () => Navigator.of(context).pop(),
+                                                ),
+                                              ],
+                                            ),
+                                            Flexible(
+                                              child: InteractiveViewer(
+                                                child: Image.memory(
+                                                  _imageBytesList[index],
+                                                  fit: BoxFit.contain,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    );
+                                  },
+                                  child: Image.memory(
+                                    _imageBytesList[index],
+                                    fit: BoxFit.cover,
+                                    width: 280,
+                                  ),
                                 ),
-                              ),
-                            );
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.close, color: Colors.red),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _images.removeAt(index);
+                                        _imageBytesList.removeAt(index);
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
                         },
-                        child: Image.memory(
-                          _imageBytes!,
-                          fit: BoxFit.contain,
-                        ),
                       ),
                     )
                   : const Center(
                       child: Text(
-                        'No image selected',
+                        'No images selected',
                         style: TextStyle(color: Colors.grey),
                       ),
                     ),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _pickImage,
-              icon: const Icon(Icons.image),
-              label: const Text('Pick Image'),
+              onPressed: _pickImages,
+              icon: const Icon(Icons.photo_library),
+              label: Text(_imageBytesList.isEmpty ? 'Pick Images' : 'Add More Images (${_imageBytesList.length})'),
             ),
             const SizedBox(height: 16),
             TextField(

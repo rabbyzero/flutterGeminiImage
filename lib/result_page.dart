@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 class ResultPage extends StatelessWidget {
-  final Uint8List? originalImageBytes;
+  final List<Uint8List>? originalImageBytesList;
   final Uint8List? generatedImageBytes;
   final String text;
 
   const ResultPage({
     super.key,
-    this.originalImageBytes,
+    this.originalImageBytesList,
     this.generatedImageBytes,
     required this.text,
   });
@@ -58,15 +58,23 @@ class ResultPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
               children: [
-                if (originalImageBytes != null)
-                  ElevatedButton.icon(
-                    onPressed: () => _showImageDialog(context, originalImageBytes!, 'Original Image'),
-                    icon: const Icon(Icons.image),
-                    label: const Text('View Original'),
-                  ),
+                if (originalImageBytesList != null && originalImageBytesList!.isNotEmpty)
+                  ...List.generate(originalImageBytesList!.length, (index) {
+                    return ElevatedButton.icon(
+                      onPressed: () => _showImageDialog(
+                        context, 
+                        originalImageBytesList![index], 
+                        'Original Image ${index + 1}'
+                      ),
+                      icon: const Icon(Icons.image),
+                      label: Text('Original ${index + 1}'),
+                    );
+                  }),
                 if (generatedImageBytes != null)
                    ElevatedButton.icon(
                     onPressed: () => _showImageDialog(context, generatedImageBytes!, 'Generated Image'),
@@ -75,7 +83,7 @@ class ResultPage extends StatelessWidget {
                   ),
               ],
             ),
-            if (originalImageBytes != null || generatedImageBytes != null)
+            if ((originalImageBytesList != null && originalImageBytesList!.isNotEmpty) || generatedImageBytes != null)
               const SizedBox(height: 24),
             const Text(
               'Detailed Analysis:',

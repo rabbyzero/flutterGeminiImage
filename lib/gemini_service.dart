@@ -12,6 +12,7 @@ class GeminiService {
   bool _isInit = false;
   
   final String _modelName = 'gemini-2.5-flash-image';
+  // final String _modelName = 'gemini-3-pro-image-preview';
 
   GeminiService();
 
@@ -85,7 +86,7 @@ class GeminiService {
     }
   }
 
-  Future<Map<String, dynamic>> analyzeImage(String prompt, Uint8List? imageBytes, String? mimeType) async {
+  Future<Map<String, dynamic>> analyzeImages(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes) async {
     try {
       await _init();
       
@@ -96,13 +97,16 @@ class GeminiService {
         {'text': prompt}
       ];
 
-      if (imageBytes != null && mimeType != null) {
-        parts.add({
-          'inline_data': {
-            'mime_type': mimeType,
-            'data': base64Encode(imageBytes)
-          }
-        });
+      // Add all images to the request
+      for (var i = 0; i < imageBytesList.length; i++) {
+        if (mimeTypes[i] != null) {
+          parts.add({
+            'inline_data': {
+              'mime_type': mimeTypes[i],
+              'data': base64Encode(imageBytesList[i])
+            }
+          });
+        }
       }
 
       final requestBody = {
@@ -113,7 +117,7 @@ class GeminiService {
         ]
       };
 
-      print('Request Content: Prompt="$prompt", ImageBytes=${imageBytes?.length ?? "null"}, MimeType="${mimeType ?? "null"}"');
+      print('Request Content: Prompt="$prompt", ImageCount=${imageBytesList.length}');
 
       final response = await client.post(
         url,
