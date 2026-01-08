@@ -4,7 +4,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
 import 'models/model_manager.dart';
 import 'models/gemini_service.dart';
-import 'models/openai_service.dart'; // Added import for OpenAI service
+import 'models/openai_service.dart';
+import 'widgets/image_display_widget.dart';
+import 'widgets/prompt_input_widget.dart';
+import 'widgets/action_buttons_widget.dart';
+import 'widgets/image_dialog_widget.dart';
 import 'result_page.dart';
 
 class ImageEditorPage extends StatefulWidget {
@@ -135,6 +139,46 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       );
   }
 
+  void _showImageDialog(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => ImageDialogWidget(
+        imageBytes: _imageBytesList[index],
+        title: 'Image ${index + 1}',
+      ),
+    );
+  }
+
+  // Method to build the model selection dropdown
+  PopupMenuButton<String> _buildModelSelector() {
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.model_training),
+      tooltip: 'Select AI Model',
+      onSelected: (String modelKey) {
+        final parts = modelKey.split('_');
+        if (parts.length >= 2) {
+          final platform = parts[0];
+          final model = parts.sublist(1).join('_');
+          _modelManager.setActiveModel(platform, model);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Active model: ${_modelManager.activeModel?.platform} ${_modelManager.activeModel?.modelName}')),
+          );
+        }
+      },
+      itemBuilder: (BuildContext context) {
+        return _modelManager.allModels.map((model) {
+          final modelKey = '${model.platform}_${model.modelName}';
+          final isSelected = _modelManager.activeModel == model;
+          return CheckedPopupMenuItem<String>(
+            value: modelKey,
+            checked: isSelected,
+            child: Text('${model.platform} - ${model.modelName}'),
+          );
+        }).toList();
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,33 +186,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
         title: const Text('AI Image Assistant'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
-          // Dropdown to select AI model
-          PopupMenuButton<String>(
-            icon: Icon(Icons.model_training),
-            tooltip: 'Select AI Model',
-            onSelected: (String modelKey) {
-              final parts = modelKey.split('_');
-              if (parts.length >= 2) {
-                final platform = parts[0];
-                final model = parts.sublist(1).join('_');
-                _modelManager.setActiveModel(platform, model);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Active model: ${_modelManager.activeModel?.platform} ${_modelManager.activeModel?.modelName}')),
-                );
-              }
-            },
-            itemBuilder: (BuildContext context) {
-              return _modelManager.allModels.map((model) {
-                final modelKey = '${model.platform}_${model.modelName}';
-                final isSelected = _modelManager.activeModel == model;
-                return CheckedPopupMenuItem<String>(
-                  value: modelKey,
-                  checked: isSelected,
-                  child: Text('${model.platform} - ${model.modelName}'),
-                );
-              }).toList();
-            },
-          ),
+          _buildModelSelector(),
           if (_lastResult != null)
             IconButton(
               onPressed: _navigateToResult,
@@ -189,115 +207,30 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
                 borderRadius: BorderRadius.circular(12),
                 color: Colors.grey[200],
               ),
-              child: _imageBytesList.isNotEmpty
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _imageBytesList.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Stack(
-                              children: [
-                                InkWell(
-                                  onTap: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => Dialog(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                                          children: [
-                                            AppBar(
-                                              title: Text('Image ${index + 1}'),
-                                              automaticallyImplyLeading: false,
-                                              actions: [
-                                                IconButton(
-                                                  icon: const Icon(Icons.close),
-                                                  onPressed: () => Navigator.of(context).pop(),
-                                                ),
-                                              ],
-                                            ),
-                                            Flexible(
-                                              child: InteractiveViewer(
-                                                minScale: 0.1,
-                                                maxScale: 5.0,
-                                                boundaryMargin: const EdgeInsets.all(double.infinity),
-                                                child: Image.memory(
-                                                  _imageBytesList[index],
-                                                  fit: BoxFit.contain,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  child: Image.memory(
-                                    _imageBytesList[index],
-                                    fit: BoxFit.cover,
-                                    width: 280,
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 0,
-                                  right: 0,
-                                  child: IconButton(
-                                    icon: const Icon(Icons.close, color: Colors.red),
-                                    style: IconButton.styleFrom(
-                                      backgroundColor: Colors.white,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _images.removeAt(index);
-                                        _imageBytesList.removeAt(index);
-                                      });
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    )
-                  : const Center(
-                      child: Text(
-                        'No images selected',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _pickImages,
-              icon: const Icon(Icons.photo_library),
-              label: Text(_imageBytesList.isEmpty ? 'Pick Images' : 'Add More Images (${_imageBytesList.length})'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _promptController,
-              decoration: const InputDecoration(
-                labelText: 'Prompt',
-                hintText: 'Ask something about the image...',
-                border: OutlineInputBorder(),
+              child: ImageDisplayWidget(
+                imageBytesList: _imageBytesList,
+                images: _images,
+                onImageTap: _showImageDialog,
+                onRemoveImage: (int index) {
+                  setState(() {
+                    _images.removeAt(index);
+                    _imageBytesList.removeAt(index);
+                  });
+                },
               ),
-              maxLines: 3,
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _isLoading ? null : _analyzeImage,
-              icon: _isLoading 
-                  ? const SizedBox(
-                      width: 20, 
-                      height: 20, 
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
-                    ) 
-                  : const Icon(Icons.send),
-              label: const Text('Ask AI'),
+            ActionButtonsWidget(
+              onPickImages: _pickImages,
+              onAnalyzeImage: _analyzeImage,
+              isLoading: _isLoading,
+              imageCount: _imageBytesList.length,
             ),
+            const SizedBox(height: 16),
+            PromptInputWidget(
+              controller: _promptController,
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
