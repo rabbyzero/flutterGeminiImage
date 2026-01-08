@@ -2,7 +2,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
-import 'gemini_service.dart';
+import 'models/model_manager.dart';
+import 'models/gemini_service.dart';
+import 'models/openai_service.dart'; // Added import for OpenAI service
 import 'result_page.dart';
 
 class ImageEditorPage extends StatefulWidget {
@@ -13,8 +15,8 @@ class ImageEditorPage extends StatefulWidget {
 }
 
 class _ImageEditorPageState extends State<ImageEditorPage> {
-  // You can set the image save directory here
-  final GeminiService _geminiService = GeminiService(saveDirectory: '~/Pictures/ai');
+  // Initialize the model manager and register services
+  final ModelManager _modelManager = ModelManager();
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _promptController = TextEditingController();
   
@@ -22,6 +24,29 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   List<Uint8List> _imageBytesList = [];
   bool _isLoading = false;
   Map<String, dynamic>? _lastResult;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeServices();
+  }
+
+  Future<void> _initializeServices() async {
+    // Register the Gemini service
+    final geminiService = GeminiService(saveDirectory: '~/Pictures/ai');
+    _modelManager.registerModel(geminiService);
+    
+    // Register the OpenAI service
+    final openAIService = OpenAIService(saveDirectory: '~/Pictures/ai');
+    _modelManager.registerModel(openAIService);
+    
+    // Here you can register more services from other AI platforms
+    // final anthropicService = AnthropicService(saveDirectory: '~/Pictures/ai');
+    // _modelManager.registerModel(anthropicService);
+    
+    // Initialize all registered models
+    await _modelManager.initializeAllModels();
+  }
 
   @override
   void dispose() {
@@ -45,6 +70,14 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   }
 
   Future<void> _analyzeImage() async {
+    if (_modelManager.activeModel == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No active model available')),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -64,7 +97,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       mimeTypes.add(mimeType);
     }
 
-    final  resultMap = await _geminiService.analyzeImages(prompt, _imageBytesList, mimeTypes);
+    final resultMap = await _modelManager.analyzeImages(prompt, _imageBytesList, mimeTypes);
     final resultText = resultMap['text'] as String?;
     final resultImage = resultMap['image'] as Uint8List?;
     
@@ -109,6 +142,33 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
         title: const Text('AI Image Assistant'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // Dropdown to select AI model
+          PopupMenuButton<String>(
+            icon: Icon(Icons.model_training),
+            tooltip: 'Select AI Model',
+            onSelected: (String modelKey) {
+              final parts = modelKey.split('_');
+              if (parts.length >= 2) {
+                final platform = parts[0];
+                final model = parts.sublist(1).join('_');
+                _modelManager.setActiveModel(platform, model);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Active model: ${_modelManager.activeModel?.platform} ${_modelManager.activeModel?.modelName}')),
+                );
+              }
+            },
+            itemBuilder: (BuildContext context) {
+              return _modelManager.allModels.map((model) {
+                final modelKey = '${model.platform}_${model.modelName}';
+                final isSelected = _modelManager.activeModel == model;
+                return CheckedPopupMenuItem<String>(
+                  value: modelKey,
+                  checked: isSelected,
+                  child: Text('${model.platform} - ${model.modelName}'),
+                );
+              }).toList();
+            },
+          ),
           if (_lastResult != null)
             IconButton(
               onPressed: _navigateToResult,
@@ -236,7 +296,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
                     ) 
                   : const Icon(Icons.send),
-              label: const Text('Ask Gemini'),
+              label: const Text('Ask AI'),
             ),
           ],
         ),
