@@ -67,7 +67,7 @@ abstract class AIServiceBase implements AIModelInterface {
                 SocksTCPClient.assignToHttpClient(ioClient, [
                   ProxySettings(endpoints.first, port, password: password, username: username),
                 ]);
-                print('Using proxy for ${platform}: $host:$port');
+                print('Using proxy for $platform: $host:$port');
               }
             } catch (e) {
               print('Failed to resolve proxy host: $e');
@@ -84,7 +84,7 @@ abstract class AIServiceBase implements AIModelInterface {
       _httpClient = httpClient;
       _isInitialized = true;
     } catch (e) {
-      throw Exception('Failed to initialize ${platform} service: $e');
+      throw Exception('Failed to initialize $platform service: $e');
     }
   }
 
@@ -111,7 +111,7 @@ abstract class AIServiceBase implements AIModelInterface {
 
     try {
       String dirPath;
-      String? home = null;
+      String? home;
       if (saveDirectory != null && saveDirectory!.startsWith('~/') && (home = Platform.environment['HOME']) != null) {
         // Ensure both values are non-null before calling replaceFirst
         String actualSaveDir = saveDirectory!;

@@ -13,17 +13,18 @@ class GenerationConfigWidget extends StatefulWidget {
 }
 
 class _GenerationConfigWidgetState extends State<GenerationConfigWidget> {
-  String _aspectRatio = '16:9';
-  String _imageSize = '2K';
-
-  final List<String> _aspectRatios = ['16:9', '4:3', '1:1', '3:4', '9:16'];
-  final List<String> _imageSizes = ['2K']; 
+  final TextEditingController _aspectRatioController = TextEditingController(text: '');
+  final TextEditingController _imageSizeController = TextEditingController(text: '');
 
   void _updateConfig() {
-    widget.onConfigChanged({
-      'aspectRatio': _aspectRatio,
-      'imageSize': _imageSize,
-    });
+    final Map<String, dynamic> config = {};
+    if (_aspectRatioController.text.trim().isNotEmpty) {
+      config['aspectRatio'] = _aspectRatioController.text.trim();
+    }
+    if (_imageSizeController.text.trim().isNotEmpty) {
+      config['imageSize'] = _imageSizeController.text.trim();
+    }
+    widget.onConfigChanged(config);
   }
 
   @override
@@ -31,6 +32,13 @@ class _GenerationConfigWidgetState extends State<GenerationConfigWidget> {
     super.initState();
     // Notify initial config
     WidgetsBinding.instance.addPostFrameCallback((_) => _updateConfig());
+  }
+
+  @override
+  void dispose() {
+    _aspectRatioController.dispose();
+    _imageSizeController.dispose();
+    super.dispose();
   }
 
   @override
@@ -48,40 +56,30 @@ class _GenerationConfigWidgetState extends State<GenerationConfigWidget> {
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: TextFormField(
+                    controller: _aspectRatioController,
                     decoration: const InputDecoration(
                       labelText: 'Aspect Ratio',
+                      hintText: 'e.g. 16:9',
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                       isDense: true,
                     ),
-                    value: _aspectRatio,
-                    items: _aspectRatios.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _aspectRatio = val);
-                        _updateConfig();
-                      }
-                    },
+                    onChanged: (val) => _updateConfig(),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: TextFormField(
+                    controller: _imageSizeController,
                     decoration: const InputDecoration(
                       labelText: 'Image Size',
+                      hintText: 'e.g. 1k 2k 4k',
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                       isDense: true,
                     ),
-                    value: _imageSize,
-                    items: _imageSizes.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _imageSize = val);
-                        _updateConfig();
-                      }
-                    },
+                    onChanged: (val) => _updateConfig(),
                   ),
                 ),
               ],

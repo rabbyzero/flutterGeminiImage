@@ -15,9 +15,7 @@ class ModelManager {
     _models['${model.platform}_${model.modelName}'] = model;
     
     // If this is the first model, make it the active one
-    if (_activeModel == null) {
-      _activeModel = model;
-    }
+    _activeModel ??= model;
   }
 
   /// Get a specific model by platform and model name

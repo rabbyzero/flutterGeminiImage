@@ -50,7 +50,7 @@ class GeminiService extends AIServiceBase {
                 'data': base64Encode(bytes),
               }
             };
-          }).toList()
+          })
         ]
       }
     ];

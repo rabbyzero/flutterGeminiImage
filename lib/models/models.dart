@@ -1,5 +1,5 @@
 /// Models library - provides a single import point for all AI model classes
-library models;
+library;
 
 export 'ai_model_interface.dart';
 export 'ai_service_base.dart';

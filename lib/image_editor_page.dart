@@ -104,9 +104,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     List<String?> mimeTypes = [];
     for (var i = 0; i < _images.length; i++) {
       String? mimeType = _images[i].mimeType;
-      if (mimeType == null) {
-        mimeType = lookupMimeType(_images[i].path);
-      }
+      mimeType ??= lookupMimeType(_images[i].path);
       mimeType ??= 'image/jpeg';
       mimeTypes.add(mimeType);
     }
