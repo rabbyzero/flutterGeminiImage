@@ -2,7 +2,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
-import 'gemini_service.dart';
+import 'ai_service.dart';
+import 'ai_service_factory.dart';
 import 'result_page.dart';
 
 class ImageEditorPage extends StatefulWidget {
@@ -14,7 +15,7 @@ class ImageEditorPage extends StatefulWidget {
 
 class _ImageEditorPageState extends State<ImageEditorPage> {
   // You can set the image save directory here
-  final GeminiService _geminiService = GeminiService(saveDirectory: '~/Pictures/ai');
+  final AIService _aiService = AIServiceFactory.createService(AIModelType.gemini, saveDirectory: '~/Pictures/ai');
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _promptController = TextEditingController();
   
@@ -64,7 +65,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       mimeTypes.add(mimeType);
     }
 
-    final  resultMap = await _geminiService.analyzeImages(prompt, _imageBytesList, mimeTypes);
+    final  resultMap = await _aiService.analyzeImages(prompt, _imageBytesList, mimeTypes);
     final resultText = resultMap['text'] as String?;
     final resultImage = resultMap['image'] as Uint8List?;
     

@@ -5,8 +5,9 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:socks5_proxy/socks_client.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'ai_service.dart';
 
-class GeminiService {
+class GeminiService implements AIService {
   String? _apiKey;
   http.Client? _httpClient;
   bool _isInit = false;
