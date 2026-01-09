@@ -117,7 +117,13 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     );
     final resultText = resultMap['text'] as String?;
     final resultImage = resultMap['image'] as Uint8List?;
-    
+    if (resultImage == null) {
+      for(var k in resultMap.keys) {
+        print('${k} ${resultMap[k]}');
+      }
+    }
+
+
     print('Analysis result received: text=${resultText?.substring(0, (resultText.length > 20 ? 20 : resultText.length))}..., image=${resultImage?.length} bytes');
 
     if (!mounted) return;

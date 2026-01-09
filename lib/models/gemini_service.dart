@@ -111,11 +111,20 @@ class GeminiService extends AIServiceBase {
       
       String textResponse = '';
       Uint8List? imageResponse;
+      if (jsonResponse.containsKey('promptFeedback')){
+        print(jsonResponse['promptFeedback']);
+        textResponse += jsonResponse['promptFeedback']['blockReason'] ?? '';
+      }
+
 
       if (jsonResponse['candidates'] != null && jsonResponse['candidates'].isNotEmpty) {
         final candidate = jsonResponse['candidates'][0];
         final content = candidate['content'];
-        
+
+        if (content == null) {
+          textResponse += candidate['finishReason'] ?? '';
+        }
+
         if (content != null && content['parts'] != null) {
           final parts = content['parts'] as List;
           
