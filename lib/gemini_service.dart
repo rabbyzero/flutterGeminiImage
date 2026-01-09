@@ -14,7 +14,9 @@ class GeminiService {
   final String _modelName = 'gemini-2.5-flash-image';
   // final String _modelName = 'gemini-3-pro-image-preview';
 
-  GeminiService();
+  String? saveDirectory;
+
+  GeminiService({this.saveDirectory});
 
   Future<void> _init() async {
     if (_isInit) return;
@@ -151,6 +153,8 @@ class GeminiService {
                   if (inlineData != null) {
                     if (inlineData.containsKey('data')) {
                       generatedImage = base64Decode(inlineData['data']);
+                      // Save the generated image
+                      await _saveGeneratedImage(generatedImage);
                     } else {
                       print('inlineData key found, but missing "data" field. Keys: ${inlineData.keys}');
                     }
@@ -182,6 +186,43 @@ class GeminiService {
       }
     } catch (e) {
       return {'text': 'Error: $e'};
+    }
+  }
+
+  Future<void> _saveGeneratedImage(Uint8List imageBytes) async {
+    try {
+      String dirPath;
+      String? home = Platform.environment['HOME'];
+      if (Platform.isWindows) {
+        home = Platform.environment['UserProfile'];
+      }
+
+      if (saveDirectory != null && saveDirectory!.isNotEmpty) {
+        dirPath = saveDirectory!;
+        // Expand ~ to home directory
+        if (dirPath.startsWith('~/') && home != null) {
+          dirPath = dirPath.replaceFirst('~', home);
+        }
+      } else {
+        if (home == null) {
+          print('Could not determine home directory. Image not saved.');
+          return;
+        }
+        dirPath = '$home/Pictures/ai';
+      }
+
+      final directory = Directory(dirPath);
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filePath = '$dirPath/gemini_gen_$timestamp.png';
+      final file = File(filePath);
+      await file.writeAsBytes(imageBytes);
+      print('Saved generated image to: $filePath');
+    } catch (e) {
+      print('Failed to save image: $e');
     }
   }
 }

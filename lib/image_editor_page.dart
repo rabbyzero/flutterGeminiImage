@@ -13,7 +13,8 @@ class ImageEditorPage extends StatefulWidget {
 }
 
 class _ImageEditorPageState extends State<ImageEditorPage> {
-  final GeminiService _geminiService = GeminiService();
+  // You can set the image save directory here
+  final GeminiService _geminiService = GeminiService(saveDirectory: '~/Pictures/ai');
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _promptController = TextEditingController();
   
@@ -160,6 +161,9 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
                                             ),
                                             Flexible(
                                               child: InteractiveViewer(
+                                                minScale: 0.1,
+                                                maxScale: 5.0,
+                                                boundaryMargin: const EdgeInsets.all(double.infinity),
                                                 child: Image.memory(
                                                   _imageBytesList[index],
                                                   fit: BoxFit.contain,

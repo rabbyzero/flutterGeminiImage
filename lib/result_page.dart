@@ -34,6 +34,9 @@ class ResultPage extends StatelessWidget {
             ),
             Flexible(
               child: InteractiveViewer(
+                minScale: 0.1,
+                maxScale: 5.0,
+                boundaryMargin: const EdgeInsets.all(double.infinity),
                 child: Image.memory(
                   imageBytes,
                   fit: BoxFit.contain,
