@@ -4,16 +4,23 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'ai_service_base.dart';
 
 class GeminiService extends AIServiceBase {
+  final String _modelId;
+  final String _displayName;
+
   @override
   String get platform => 'Google';
 
   @override
-  String get modelName => 'Gemini Pro Vision';
+  String get modelName => _displayName;
   
   late final String baseUrl;
 
-  GeminiService({required super.saveDirectory}) {
-    baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
+  GeminiService({
+    required super.saveDirectory, 
+    String modelId = 'gemini-2.5-flash-image',
+    String displayName = 'Gemini 2.5 Flash',
+  }) : _modelId = modelId, _displayName = displayName {
+    baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/$_modelId:generateContent';
   }
 
   Future<String> _readApiKeyFromFile() async {
@@ -27,7 +34,7 @@ class GeminiService extends AIServiceBase {
   }
 
   @override
-  String _prepareRequestBody(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes) {
+  String _prepareRequestBody(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes, {Map<String, dynamic>? config}) {
     // Prepare the request body according to Gemini API requirements
     final List<Map<String, dynamic>> contents = [
       {
@@ -48,14 +55,26 @@ class GeminiService extends AIServiceBase {
       }
     ];
 
-    return '{"contents": ${jsonEncode(contents)}}';
+    final Map<String, dynamic> requestBody = {
+      'contents': contents,
+    };
+
+    if (config != null) {
+      requestBody['generationConfig'] = {
+        'imageConfig': config,
+      };
+    }
+
+    return jsonEncode(requestBody);
   }
 
-  @override
-  Future<Map<String, dynamic>> analyzeImage(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes) async {
+  Future<Map<String, dynamic>> analyzeImage(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes, {Map<String, dynamic>? config}) async {
     print('Sending request to Gemini API...');
     print('Number of images: ${imageBytesList.length}');
     print('Prompt: $prompt');
+    if (config != null) {
+      print('Config: $config');
+    }
 
     // Prepare request headers
     final apiKey = await _readApiKeyFromFile();
@@ -65,7 +84,8 @@ class GeminiService extends AIServiceBase {
     };
 
     // Prepare request body
-    final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes);
+    final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes, config: config);
+    print(baseUrl);
 
     print('Request body size: ${requestBody.length} characters');
 
@@ -137,8 +157,8 @@ class GeminiService extends AIServiceBase {
   }
 
   @override
-  Future<Map<String, dynamic>> analyzeImages(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes) async {
-    return analyzeImage(prompt, imageBytesList, mimeTypes);
+  Future<Map<String, dynamic>> analyzeImages(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes, {Map<String, dynamic>? config}) async {
+    return analyzeImage(prompt, imageBytesList, mimeTypes, config: config);
   }
 
   @override

@@ -15,8 +15,9 @@ abstract class AIModelInterface {
   Future<Map<String, dynamic>> analyzeImages(
     String prompt,
     List<Uint8List> imageBytesList,
-    List<String?> mimeTypes,
-  );
+    List<String?> mimeTypes, {
+    Map<String, dynamic>? config,
+  });
 
   /// Generate content based on text prompt only
   Future<Map<String, dynamic>> generateText(

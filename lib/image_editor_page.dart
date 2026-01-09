@@ -25,6 +25,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   List<Uint8List> _imageBytesList = [];
   bool _isLoading = false;
   Map<String, dynamic>? _lastResult;
+  Map<String, dynamic> _generationConfig = {};
 
   @override
   void initState() {
@@ -33,9 +34,21 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   }
 
   Future<void> _initializeServices() async {
-    // Register the Gemini service
-    final geminiService = GeminiService(saveDirectory: '~/Pictures/ai');
-    _modelManager.registerModel(geminiService);
+    // Register the Gemini 2.5 Flash service
+    final geminiFlash = GeminiService(
+      saveDirectory: '~/Pictures/ai',
+      modelId: 'gemini-2.5-flash-image',
+      displayName: 'Gemini 2.5 Flash',
+    );
+    _modelManager.registerModel(geminiFlash);
+
+    // Register the Gemini 3 Pro service
+    final geminiPro = GeminiService(
+      saveDirectory: '~/Pictures/ai',
+      modelId: 'gemini-3-pro-image-preview', // User provided model ID
+      displayName: 'Gemini 3 Pro Preview',
+    );
+    _modelManager.registerModel(geminiPro);
     
     // Register the OpenAI service
     final openAIService = OpenAIService(saveDirectory: '~/Pictures/ai');
@@ -98,7 +111,12 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       mimeTypes.add(mimeType);
     }
 
-    final resultMap = await _modelManager.analyzeImages(prompt, _imageBytesList, mimeTypes);
+    final resultMap = await _modelManager.analyzeImages(
+      prompt, 
+      _imageBytesList, 
+      mimeTypes,
+      config: _generationConfig.isNotEmpty ? _generationConfig : null,
+    );
     final resultText = resultMap['text'] as String?;
     final resultImage = resultMap['image'] as Uint8List?;
     
@@ -182,6 +200,11 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
             setState(() {
               _images.removeAt(index);
               _imageBytesList.removeAt(index);
+            });
+          },
+          onConfigChanged: (config) {
+            setState(() {
+              _generationConfig = config;
             });
           },
         ),

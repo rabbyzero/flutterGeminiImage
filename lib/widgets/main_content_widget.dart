@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'generation_config_widget.dart';
 import 'action_buttons_widget.dart';
 import 'image_display_widget.dart';
 import 'prompt_input_widget.dart';
@@ -15,6 +16,7 @@ class MainContentWidget extends StatelessWidget {
   final VoidCallback onAnalyzeImage;
   final Function(int) onImageTap;
   final Function(int) onRemoveImage;
+  final ValueChanged<Map<String, dynamic>> onConfigChanged;
 
   const MainContentWidget({
     super.key,
@@ -27,6 +29,7 @@ class MainContentWidget extends StatelessWidget {
     required this.onAnalyzeImage,
     required this.onImageTap,
     required this.onRemoveImage,
+    required this.onConfigChanged,
   });
 
   @override
@@ -48,6 +51,8 @@ class MainContentWidget extends StatelessWidget {
             onRemoveImage: onRemoveImage,
           ),
         ),
+        const SizedBox(height: 16),
+        GenerationConfigWidget(onConfigChanged: onConfigChanged),
         const SizedBox(height: 16),
         ActionButtonsWidget(
           onPickImages: onPickImages,

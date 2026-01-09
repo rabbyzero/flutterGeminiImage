@@ -109,7 +109,12 @@ class OpenAIService extends AIServiceBase {
   }
 
   @override
-  Future<Map<String, dynamic>> analyzeImages(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes) async {
+  Future<Map<String, dynamic>> analyzeImages(
+    String prompt,
+    List<Uint8List> imageBytesList,
+    List<String?> mimeTypes, {
+    Map<String, dynamic>? config,
+  }) async {
     return analyzeImage(prompt, imageBytesList, mimeTypes);
   }
 

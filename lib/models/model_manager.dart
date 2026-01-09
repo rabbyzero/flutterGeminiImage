@@ -65,12 +65,13 @@ class ModelManager {
   Future<Map<String, dynamic>> analyzeImages(
     String prompt,
     List<Uint8List> imageBytesList,
-    List<String?> mimeTypes,
-  ) async {
+    List<String?> mimeTypes, {
+    Map<String, dynamic>? config,
+  }) async {
     if (_activeModel == null) {
       throw Exception('No active model available');
     }
-    return await _activeModel!.analyzeImages(prompt, imageBytesList, mimeTypes);
+    return await _activeModel!.analyzeImages(prompt, imageBytesList, mimeTypes, config: config);
   }
 
   /// Generate text using the active model
