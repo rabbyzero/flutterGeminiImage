@@ -5,10 +5,7 @@ import 'package:mime/mime.dart';
 import 'models/model_manager.dart';
 import 'models/gemini_service.dart';
 import 'models/openai_service.dart';
-import 'widgets/image_display_widget.dart';
-import 'widgets/prompt_input_widget.dart';
-import 'widgets/action_buttons_widget.dart';
-import 'widgets/image_dialog_widget.dart';
+import 'widgets/widgets.dart';
 import 'result_page.dart';
 
 class ImageEditorPage extends StatefulWidget {
@@ -149,36 +146,6 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     );
   }
 
-  // Method to build the model selection dropdown
-  PopupMenuButton<String> _buildModelSelector() {
-    return PopupMenuButton<String>(
-      icon: Icon(Icons.model_training),
-      tooltip: 'Select AI Model',
-      onSelected: (String modelKey) {
-        final parts = modelKey.split('_');
-        if (parts.length >= 2) {
-          final platform = parts[0];
-          final model = parts.sublist(1).join('_');
-          _modelManager.setActiveModel(platform, model);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Active model: ${_modelManager.activeModel?.platform} ${_modelManager.activeModel?.modelName}')),
-          );
-        }
-      },
-      itemBuilder: (BuildContext context) {
-        return _modelManager.allModels.map((model) {
-          final modelKey = '${model.platform}_${model.modelName}';
-          final isSelected = _modelManager.activeModel == model;
-          return CheckedPopupMenuItem<String>(
-            value: modelKey,
-            checked: isSelected,
-            child: Text('${model.platform} - ${model.modelName}'),
-          );
-        }).toList();
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -186,7 +153,12 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
         title: const Text('AI Image Assistant'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
-          _buildModelSelector(),
+          ModelSelectorWidget(
+            modelManager: _modelManager,
+            onModelSelected: (String platform, String model) {
+              _modelManager.setActiveModel(platform, model);
+            },
+          ),
           if (_lastResult != null)
             IconButton(
               onPressed: _navigateToResult,
@@ -197,41 +169,21 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              height: 300,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.grey[200],
-              ),
-              child: ImageDisplayWidget(
-                imageBytesList: _imageBytesList,
-                images: _images,
-                onImageTap: _showImageDialog,
-                onRemoveImage: (int index) {
-                  setState(() {
-                    _images.removeAt(index);
-                    _imageBytesList.removeAt(index);
-                  });
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            ActionButtonsWidget(
-              onPickImages: _pickImages,
-              onAnalyzeImage: _analyzeImage,
-              isLoading: _isLoading,
-              imageCount: _imageBytesList.length,
-            ),
-            const SizedBox(height: 16),
-            PromptInputWidget(
-              controller: _promptController,
-            ),
-            const SizedBox(height: 16),
-          ],
+        child: MainContentWidget(
+          imageBytesList: _imageBytesList,
+          images: _images,
+          isLoading: _isLoading,
+          imageCount: _imageBytesList.length,
+          promptController: _promptController,
+          onPickImages: _pickImages,
+          onAnalyzeImage: _analyzeImage,
+          onImageTap: _showImageDialog,
+          onRemoveImage: (int index) {
+            setState(() {
+              _images.removeAt(index);
+              _imageBytesList.removeAt(index);
+            });
+          },
         ),
       ),
     );

@@ -1,180 +1,150 @@
 import 'dart:typed_data';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart' show rootBundle;
 import 'ai_service_base.dart';
 
-/// Gemini service implementation that extends the base AI service
 class GeminiService extends AIServiceBase {
-  final String _modelName;
-
-  GeminiService({String? saveDirectory, String modelName = 'gemini-2.5-flash-image'})
-      : _modelName = modelName,
-        super(saveDirectory: saveDirectory);
+  @override
+  String get platform => 'Google';
 
   @override
-  String get modelName => _modelName;
+  String get modelName => 'Gemini Pro Vision';
+  
+  late final String baseUrl;
 
-  @override
-  String get platform => 'Gemini';
+  GeminiService({required super.saveDirectory}) {
+    baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
+  }
 
-  @override
-  Future<Map<String, dynamic>> analyzeImages(
-    String prompt,
-    List<Uint8List> imageBytesList,
-    List<String?> mimeTypes,
-  ) async {
-    await initialize();
-
-    final parts = <Map<String, dynamic>>[
-      {'text': prompt}
-    ];
-
-    // Add all images to the request
-    for (var i = 0; i < imageBytesList.length; i++) {
-      if (mimeTypes[i] != null) {
-        parts.add({
-          'inline_data': {
-            'mime_type': mimeTypes[i],
-            'data': base64Encode(imageBytesList[i])
-          }
-        });
-      }
-    }
-
-    final requestBody = {
-      'contents': [
-        {
-          'parts': parts
-        }
-      ]
-    };
-
-    print('Gemini Request Content: Prompt="$prompt", ImageCount=${imageBytesList.length}');
-
-    final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/$_modelName:generateContent?key=${apiKey!}');
-    final response = await httpClient.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(requestBody),
-    );
-
-    print('Gemini Response: ${response.statusCode}');
-
-    if (response.statusCode == 200) {
-      final jsonResponse = jsonDecode(response.body);
-      try {
-        final candidates = jsonResponse['candidates'] as List?;
-        if (candidates != null && candidates.isNotEmpty) {
-          final candidate = candidates[0];
-          final content = candidate['content'];
-          if (content != null) {
-            final parts = content['parts'] as List?;
-            if (parts != null && parts.isNotEmpty) {
-              String? generatedText;
-              Uint8List? generatedImage;
-
-              for (var part in parts) {
-                print('Gemini Part keys: ${part.keys}');
-                if (part.containsKey('text')) {
-                  generatedText = (generatedText ?? '') + part['text'];
-                }
-                
-                // Handle both snake_case (API spec) and camelCase (observed in some responses)
-                final inlineData = part['inline_data'] ?? part['inlineData'];
-                if (inlineData != null) {
-                  if (inlineData.containsKey('data')) {
-                    generatedImage = base64Decode(inlineData['data']);
-                    // Save the generated image using the method from the base class
-                    await saveGeneratedImage(generatedImage);
-                  } else {
-                    print('inlineData key found, but missing "data" field. Keys: ${inlineData.keys}');
-                  }
-                }
-              }
-              
-              if (generatedText == null && generatedImage == null) {
-                return {'text': 'Debug: Parsed parts but found no content. Raw parts: $parts'};
-              }
-
-              return {
-                'text': generatedText,
-                'image': generatedImage,
-              };
-            }
-          }
-        }
-        if (jsonResponse['promptFeedback'] != null) {
-           return {'text': "Safety Block: ${jsonResponse['promptFeedback']}"};
-        }
-        return {'text': 'No text generated. Response: $jsonResponse'};
-      } catch (e) {
-           print('Gemini parsing error: $e');
-           return {'text': 'Error parsing response: $e'};
-      }
-    } else {
-      print('Gemini API Error: ${response.statusCode} ${response.body}');
-      return {'text': 'Error: API returned ${response.statusCode}: ${response.body}'};
+  Future<String> _readApiKeyFromFile() async {
+    try {
+      final apiKey = await rootBundle.loadString('assets/api_key.txt');
+      return apiKey.trim();
+    } catch (e) {
+      print('Failed to read API key from file: $e');
+      return '';
     }
   }
 
   @override
-  Future<Map<String, dynamic>> generateText(String prompt) async {
-    await initialize();
+  String _prepareRequestBody(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes) {
+    // Prepare the request body according to Gemini API requirements
+    final List<Map<String, dynamic>> contents = [
+      {
+        'role': 'user',
+        'parts': [
+          {'text': prompt},
+          ...imageBytesList.asMap().entries.map((entry) {
+            int index = entry.key;
+            Uint8List bytes = entry.value;
+            return {
+              'inline_data': {
+                'mime_type': mimeTypes[index] ?? 'image/jpeg',
+                'data': base64Encode(bytes),
+              }
+            };
+          }).toList()
+        ]
+      }
+    ];
 
-    final requestBody = {
-      'contents': [
-        {
-          'parts': [
-            {'text': prompt}
-          ]
-        }
-      ]
+    return '{"contents": ${jsonEncode(contents)}}';
+  }
+
+  @override
+  Future<Map<String, dynamic>> analyzeImage(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes) async {
+    print('Sending request to Gemini API...');
+    print('Number of images: ${imageBytesList.length}');
+    print('Prompt: $prompt');
+
+    // Prepare request headers
+    final apiKey = await _readApiKeyFromFile();
+    final headers = {
+      'x-goog-api-key': apiKey,
+      'Content-Type': 'application/json',
     };
 
-    print('Gemini Text Generation Request: "$prompt"');
+    // Prepare request body
+    final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes);
 
-    final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/$_modelName:generateContent?key=${apiKey!}');
+    print('Request body size: ${requestBody.length} characters');
+
+    // Send the request using the base class http client
     final response = await httpClient.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(requestBody),
+      Uri.parse(baseUrl),
+      headers: headers,
+      body: requestBody,
     );
 
-    print('Gemini Text Generation Response: ${response.statusCode}');
+    print('Gemini API response status: ${response.statusCode}');
+    if (response.statusCode != 200) {
+      print('Gemini API error: ${response.body}');
+      return {
+        'text': 'Error: ${response.statusCode} - ${response.body}',
+        'image': null,
+      };
+    }
 
-    if (response.statusCode == 200) {
-      final jsonResponse = jsonDecode(response.body);
-      try {
-        final candidates = jsonResponse['candidates'] as List?;
-        if (candidates != null && candidates.isNotEmpty) {
-          final candidate = candidates[0];
-          final content = candidate['content'];
-          if (content != null) {
-            final parts = content['parts'] as List?;
-            if (parts != null && parts.isNotEmpty) {
-              String? generatedText;
+    // Parse the response
+    try {
+      final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+      
+      String textResponse = '';
+      Uint8List? imageResponse;
 
-              for (var part in parts) {
-                if (part.containsKey('text')) {
-                  generatedText = (generatedText ?? '') + part['text'];
-                }
+      if (jsonResponse['candidates'] != null && jsonResponse['candidates'].isNotEmpty) {
+        final candidate = jsonResponse['candidates'][0];
+        final content = candidate['content'];
+        
+        if (content != null && content['parts'] != null) {
+          final parts = content['parts'] as List;
+          
+          for (var part in parts) {
+            if (part is Map) {
+              // Extract text
+              if (part.containsKey('text')) {
+                textResponse += part['text'] ?? '';
               }
               
-              return {'text': generatedText ?? ''};
+              // Extract image (handle both snake_case and camelCase)
+              final inlineData = part['inline_data'] ?? part['inlineData'];
+              if (inlineData != null && inlineData is Map) {
+                if (inlineData.containsKey('data')) {
+                  try {
+                    imageResponse = base64Decode(inlineData['data']);
+                    await saveGeneratedImage(imageResponse);
+                  } catch (e) {
+                    print('Error decoding image data: $e');
+                  }
+                }
+              }
             }
           }
         }
-        if (jsonResponse['promptFeedback'] != null) {
-           return {'text': "Safety Block: ${jsonResponse['promptFeedback']}"};
-        }
-        return {'text': 'No text generated. Response: $jsonResponse'};
-      } catch (e) {
-           print('Gemini parsing error: $e');
-           return {'text': 'Error parsing response: $e'};
       }
-    } else {
-      print('Gemini API Error: ${response.statusCode} ${response.body}');
-      return {'text': 'Error: API returned ${response.statusCode}: ${response.body}'};
+      
+      return {
+        'text': textResponse,
+        'image': imageResponse,
+      };
+    } catch (e) {
+      print('Error parsing Gemini API response: $e');
+      return {
+        'text': 'Error processing response from Gemini API',
+        'image': null,
+      };
     }
+  }
+
+  @override
+  Future<Map<String, dynamic>> analyzeImages(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes) async {
+    return analyzeImage(prompt, imageBytesList, mimeTypes);
+  }
+
+  @override
+  Future<Map<String, dynamic>> generateText(String prompt) async {
+    // For now, just return a placeholder
+    // Actual implementation would send a text-only request to the API
+    return {'text': 'Generated text for: $prompt', 'image': null};
   }
 }

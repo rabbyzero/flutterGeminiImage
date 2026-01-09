@@ -38,6 +38,8 @@ dependencies:
   flutter_markdown: ^0.7.7+1
   socks5_proxy: ^2.1.1
   http: ^1.6.0
+  mime: ^1.0.0
+  meta: ^1.15.0
 
 dev_dependencies:
   flutter_test:

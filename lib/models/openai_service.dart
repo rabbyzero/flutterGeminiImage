@@ -1,143 +1,122 @@
-import 'dart:typed_data';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:typed_data';
 import 'ai_service_base.dart';
 
-/// OpenAI service implementation that extends the base AI service
 class OpenAIService extends AIServiceBase {
-  final String _modelName;
-
-  OpenAIService({String? saveDirectory, String modelName = 'gpt-4-vision-preview'})
-      : _modelName = modelName,
-        super(saveDirectory: saveDirectory);
-
-  @override
-  String get modelName => _modelName;
-
   @override
   String get platform => 'OpenAI';
 
   @override
-  Future<Map<String, dynamic>> analyzeImages(
-    String prompt,
-    List<Uint8List> imageBytesList,
-    List<String?> mimeTypes,
-  ) async {
-    await initialize();
+  String get modelName => 'GPT-4 Vision';
+  
+  final String baseUrl = 'https://api.openai.com/v1/chat/completions';
 
-    // Create the messages payload for OpenAI
-    final messages = [
-      {
-        'role': 'user',
-        'content': [
-          {'type': 'text', 'text': prompt},
-          ...imageBytesList.asMap().entries.map((entry) {
-            final index = entry.key;
-            final imageBytes = entry.value;
-            final mimeType = mimeTypes[index] ?? 'image/jpeg';
-            
-            return {
-              'type': 'image_url',
-              'image_url': {
-                'url': 'data:$mimeType;base64,${base64Encode(imageBytes)}'
-              }
-            };
-          }).toList()
-        ]
-      }
-    ];
+  OpenAIService({required super.saveDirectory});
 
-    final requestBody = {
-      'model': _modelName,
-      'messages': messages,
-      'max_tokens': 1000,
+  String _readApiKeyFromFile() {
+    // Placeholder for reading API key from secure storage
+    return '';
+  }
+
+  String _prepareRequestBody(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes) {
+    // Prepare the request body according to OpenAI API requirements
+    final List<Map<String, dynamic>> imageContents = imageBytesList.asMap().entries.map((entry) {
+      int index = entry.key;
+      Uint8List bytes = entry.value;
+      return {
+        'type': 'image_url',
+        'image_url': {
+          'url': 'data:${mimeTypes[index] ?? "image/jpeg"};base64,${base64Encode(bytes)}'
+        }
+      };
+    }).toList();
+
+    final Map<String, dynamic> requestBody = {
+      'model': 'gpt-4-vision-preview',
+      'messages': [
+        {
+          'role': 'user',
+          'content': [
+            {'type': 'text', 'text': prompt},
+            ...imageContents
+          ]
+        }
+      ],
+      'max_tokens': 300
     };
 
-    print('OpenAI Request Content: Prompt="$prompt", ImageCount=${imageBytesList.length}');
+    return jsonEncode(requestBody);
+  }
 
+  @override
+  Future<Map<String, dynamic>> analyzeImage(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes) async {
+    print('Sending request to OpenAI API...');
+    print('Number of images: ${imageBytesList.length}');
+    print('Prompt: $prompt');
+
+    // Prepare request headers
     final headers = {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${apiKey!}',
+      'Authorization': 'Bearer ${_readApiKeyFromFile()}',
     };
 
-    final url = Uri.parse('https://api.openai.com/v1/chat/completions');
+    // Prepare request body
+    final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes);
+
+    print('Request body size: ${requestBody.length} characters');
+
+    // Send the request using the base class http client
     final response = await httpClient.post(
-      url,
+      Uri.parse(baseUrl),
       headers: headers,
-      body: jsonEncode(requestBody),
+      body: requestBody,
     );
 
-    print('OpenAI Response: ${response.statusCode}');
+    print('OpenAI API response status: ${response.statusCode}');
+    if (response.statusCode != 200) {
+      print('OpenAI API error: ${response.body}');
+      return {
+        'text': 'Error: ${response.statusCode} - ${response.body}',
+        'image': null,
+      };
+    }
 
-    if (response.statusCode == 200) {
-      final jsonResponse = jsonDecode(response.body);
-      try {
-        if (jsonResponse['choices'] != null && jsonResponse['choices'].length > 0) {
-          final message = jsonResponse['choices'][0]['message'];
-          if (message != null && message['content'] != null) {
-            final generatedText = message['content'];
-            return {'text': generatedText, 'image': null};
-          }
-        }
-        return {'text': 'No text generated. Response: $jsonResponse'};
-      } catch (e) {
-        print('OpenAI parsing error: $e');
-        return {'text': 'Error parsing response: $e'};
+    // Parse the response
+    try {
+      final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+      
+      // Extract text response
+      String textResponse = '';
+      if (jsonResponse['choices'] != null && jsonResponse['choices'].isNotEmpty) {
+        textResponse = jsonResponse['choices'][0]['message']['content'] ?? '';
       }
-    } else {
-      print('OpenAI API Error: ${response.statusCode} ${response.body}');
-      return {'text': 'Error: API returned ${response.statusCode}: ${response.body}'};
+      
+      // Extract image if present in response
+      Uint8List? imageResponse;
+      // Note: GPT-4 Vision typically doesn't return generated images, only text responses
+      
+      return {
+        'text': textResponse,
+        'image': imageResponse,
+      };
+    } catch (e) {
+      print('Error parsing OpenAI API response: $e');
+      return {
+        'text': 'Error processing response from OpenAI API',
+        'image': null,
+      };
     }
   }
 
   @override
+  Future<Map<String, dynamic>> analyzeImages(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes) async {
+    return analyzeImage(prompt, imageBytesList, mimeTypes);
+  }
+
+  @override
   Future<Map<String, dynamic>> generateText(String prompt) async {
-    await initialize();
-
-    final messages = [
-      {'role': 'user', 'content': prompt}
-    ];
-
-    final requestBody = {
-      'model': _modelName,
-      'messages': messages,
-      'max_tokens': 1000,
-    };
-
-    print('OpenAI Text Generation Request: "$prompt"');
-
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${apiKey!}',
-    };
-
-    final url = Uri.parse('https://api.openai.com/v1/chat/completions');
-    final response = await httpClient.post(
-      url,
-      headers: headers,
-      body: jsonEncode(requestBody),
-    );
-
-    print('OpenAI Text Generation Response: ${response.statusCode}');
-
-    if (response.statusCode == 200) {
-      final jsonResponse = jsonDecode(response.body);
-      try {
-        if (jsonResponse['choices'] != null && jsonResponse['choices'].length > 0) {
-          final message = jsonResponse['choices'][0]['message'];
-          if (message != null && message['content'] != null) {
-            final generatedText = message['content'];
-            return {'text': generatedText};
-          }
-        }
-        return {'text': 'No text generated. Response: $jsonResponse'};
-      } catch (e) {
-        print('OpenAI parsing error: $e');
-        return {'text': 'Error parsing response: $e'};
-      }
-    } else {
-      print('OpenAI API Error: ${response.statusCode} ${response.body}');
-      return {'text': 'Error: API returned ${response.statusCode}: ${response.body}'};
-    }
+    // For now, just return a placeholder
+    // Actual implementation would send a text-only request to the API
+    return {'text': 'Generated text for: $prompt', 'image': null};
   }
 }
