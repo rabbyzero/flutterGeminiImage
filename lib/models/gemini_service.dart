@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
 import 'ai_service_base.dart';
 
@@ -90,17 +92,89 @@ class GeminiService extends AIServiceBase {
     print('Request body size: ${requestBody.length} characters');
 
     // Send the request using the base class http client
-    final response = await httpClient.post(
-      Uri.parse(baseUrl),
-      headers: headers,
-      body: requestBody,
-    );
+    http.Response response;
+    try {
+      response = await httpClient.post(
+        Uri.parse(baseUrl),
+        headers: headers,
+        body: requestBody,
+      );
+    } on SocketException catch (e) {
+      print('Network error: $e');
+      return {
+        'error': 'Network connection failed. Please check your internet connection.',
+        'text': null,
+        'image': null,
+      };
+    } on HandshakeException catch (e) {
+      print('SSL/TLS error: $e');
+      return {
+        'error': 'Secure connection failed. Please check your network settings.',
+        'text': null,
+        'image': null,
+      };
+    } catch (e) {
+      print('Request failed: $e');
+      return {
+        'error': 'Request failed: $e',
+        'text': null,
+        'image': null,
+      };
+    }
 
     print('Gemini API response status: ${response.statusCode}');
     if (response.statusCode != 200) {
       print('Gemini API error: ${response.body}');
+      
+      String errorMessage = 'API Error (${response.statusCode})';
+      try {
+        final errorJson = jsonDecode(response.body);
+        if (errorJson['error'] != null && errorJson['error']['message'] != null) {
+          errorMessage = errorJson['error']['message'];
+        }
+      } catch (e) {
+        // Fallback to raw body if not valid JSON
+        errorMessage = response.body;
+      }
+      
+      String userFriendlyMessage = errorMessage;
+      
+      // Handle specific status codes
+      switch (response.statusCode) {
+        case 400:
+          userFriendlyMessage = 'Bad Request: $errorMessage';
+          if (errorMessage.contains('INVALID_ARGUMENT')) {
+             userFriendlyMessage = 'Invalid parameters. Please check your image format or prompt.';
+          }
+          break;
+        case 401:
+          userFriendlyMessage = 'Unauthorized: Invalid API Key. Please check your assets/api_key.txt file.';
+          break;
+        case 403:
+          userFriendlyMessage = 'Forbidden: Access denied.';
+          if (errorMessage.contains('location is not supported')) {
+            userFriendlyMessage = 'Location not supported. You may need to use a proxy or VPN.';
+          } else if (errorMessage.contains('quota')) {
+            userFriendlyMessage = 'Quota exceeded. Please check your Google Cloud Console usage.';
+          }
+          break;
+        case 404:
+          userFriendlyMessage = 'Model not found. The model $_modelId might not exist or you don\'t have access to it.';
+          break;
+        case 429:
+          userFriendlyMessage = 'Too Many Requests. Please slow down.';
+          break;
+        case 500:
+        case 502:
+        case 503:
+        case 504:
+          userFriendlyMessage = 'Gemini Service Error (${response.statusCode}). Please try again later.';
+          break;
+      }
+
       return {
-        'text': 'Error: ${response.statusCode} - ${response.body}',
+        'error': userFriendlyMessage,
+        'text': 'Error: $userFriendlyMessage',
         'image': null,
       };
     }
@@ -109,6 +183,11 @@ class GeminiService extends AIServiceBase {
     try {
       final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
       
+      Map<String, dynamic>? usageMetadata;
+      if (jsonResponse.containsKey('usageMetadata')) {
+        usageMetadata = jsonResponse['usageMetadata'];
+      }
+
       String textResponse = '';
       Uint8List? imageResponse;
       if (jsonResponse.containsKey('promptFeedback')){
@@ -155,6 +234,7 @@ class GeminiService extends AIServiceBase {
       return {
         'text': textResponse,
         'image': imageResponse,
+        'usage': usageMetadata,
       };
     } catch (e) {
       print('Error parsing Gemini API response: $e');

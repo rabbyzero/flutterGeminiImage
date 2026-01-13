@@ -115,6 +115,31 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       mimeTypes,
       config: _generationConfig.isNotEmpty ? _generationConfig : null,
     );
+
+    if (resultMap.containsKey('error') && resultMap['error'] != null) {
+      if (!mounted) return;
+      
+      setState(() {
+        _isLoading = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(resultMap['error']),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Dismiss',
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+            textColor: Colors.white,
+          ),
+        ),
+      );
+      return;
+    }
+
     final resultText = resultMap['text'] as String?;
     final resultImage = resultMap['image'] as Uint8List?;
     if (resultImage == null) {
@@ -134,7 +159,8 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
            _lastResult = {
              'text': resultText ?? '',
              'originalImages': _imageBytesList,
-             'generatedImage': resultImage
+             'generatedImage': resultImage,
+             'usage': resultMap['usage'],
            };
         }
     });
@@ -153,6 +179,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
             originalImageBytesList: _lastResult!['originalImages'],
             generatedImageBytes: _lastResult!['generatedImage'],
             text: _lastResult!['text'],
+            usage: _lastResult!['usage'],
           ),
         ),
       );

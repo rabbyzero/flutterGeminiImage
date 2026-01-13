@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'ai_service_base.dart';
 
 class OpenAIService extends AIServiceBase {
@@ -66,16 +68,41 @@ class OpenAIService extends AIServiceBase {
     print('Request body size: ${requestBody.length} characters');
 
     // Send the request using the base class http client
-    final response = await httpClient.post(
-      Uri.parse(baseUrl),
-      headers: headers,
-      body: requestBody,
-    );
+    http.Response response;
+    try {
+      response = await httpClient.post(
+        Uri.parse(baseUrl),
+        headers: headers,
+        body: requestBody,
+      );
+    } on SocketException catch (e) {
+      print('Network error: $e');
+      return {
+        'error': 'Network connection failed. Please check your internet connection.',
+        'text': null,
+        'image': null,
+      };
+    } on HandshakeException catch (e) {
+      print('SSL/TLS error: $e');
+      return {
+        'error': 'Secure connection failed. Please check your network settings.',
+        'text': null,
+        'image': null,
+      };
+    } catch (e) {
+      print('Request failed: $e');
+      return {
+        'error': 'Request failed: $e',
+        'text': null,
+        'image': null,
+      };
+    }
 
     print('OpenAI API response status: ${response.statusCode}');
     if (response.statusCode != 200) {
       print('OpenAI API error: ${response.body}');
       return {
+        'error': 'API Error (${response.statusCode}): ${response.body}',
         'text': 'Error: ${response.statusCode} - ${response.body}',
         'image': null,
       };
