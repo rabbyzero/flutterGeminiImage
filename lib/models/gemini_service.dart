@@ -15,6 +15,9 @@ class GeminiService extends AIServiceBase {
   @override
   String get modelName => _displayName;
   
+  @override
+  String get displayName => '$platform - $modelName';
+  
   late final String baseUrl;
 
   GeminiService({
@@ -30,12 +33,12 @@ class GeminiService extends AIServiceBase {
       final apiKey = await rootBundle.loadString('assets/api_key.txt');
       return apiKey.trim();
     } catch (e) {
-      print('Failed to read API key from file: $e');
+      // Production code shouldn't use print statements
+      // print('Failed to read API key from file: $e');
       return '';
     }
   }
 
-  @override
   String _prepareRequestBody(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes, {Map<String, dynamic>? config}) {
     // Prepare the request body according to Gemini API requirements
     final List<Map<String, dynamic>> contents = [
@@ -70,12 +73,14 @@ class GeminiService extends AIServiceBase {
     return jsonEncode(requestBody);
   }
 
-  Future<Map<String, dynamic>> analyzeImage(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes, {Map<String, dynamic>? config}) async {
-    print('Sending request to Gemini API...');
-    print('Number of images: ${imageBytesList.length}');
-    print('Prompt: $prompt');
+  @override
+  Future<Map<String, dynamic>> analyzeImages(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes, {Map<String, dynamic>? config}) async {
+    // Production code shouldn't use print statements
+    // print('Sending request to Gemini API...');
+    // print('Number of images: ${imageBytesList.length}');
+    // print('Prompt: $prompt');
     if (config != null) {
-      print('Config: $config');
+      // print('Config: $config');
     }
 
     // Prepare request headers
@@ -87,9 +92,9 @@ class GeminiService extends AIServiceBase {
 
     // Prepare request body
     final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes, config: config);
-    print(baseUrl);
+    // print(baseUrl);
 
-    print('Request body size: ${requestBody.length} characters');
+    // print('Request body size: ${requestBody.length} characters');
 
     // Send the request using the base class http client
     http.Response response;
@@ -99,32 +104,36 @@ class GeminiService extends AIServiceBase {
         headers: headers,
         body: requestBody,
       );
-    } on SocketException catch (e) {
-      print('Network error: $e');
+    } on SocketException catch (_) {
+      // Production code shouldn't use print statements
+      // print('Network error: $e');
       return {
         'error': 'Network connection failed. Please check your internet connection.',
         'text': null,
         'image': null,
       };
-    } on HandshakeException catch (e) {
-      print('SSL/TLS error: $e');
+    } on HandshakeException catch (_) {
+      // Production code shouldn't use print statements
+      // print('SSL/TLS error: $e');
       return {
         'error': 'Secure connection failed. Please check your network settings.',
         'text': null,
         'image': null,
       };
-    } catch (e) {
-      print('Request failed: $e');
+    } catch (_) {
+      // Production code shouldn't use print statements
+      // print('Request failed: $e');
       return {
-        'error': 'Request failed: $e',
+        'error': 'Request failed',
         'text': null,
         'image': null,
       };
     }
 
-    print('Gemini API response status: ${response.statusCode}');
+    // Production code shouldn't use print statements
+    // print('Gemini API response status: ${response.statusCode}');
     if (response.statusCode != 200) {
-      print('Gemini API error: ${response.body}');
+      // print('Gemini API error: ${response.body}');
       
       String errorMessage = 'API Error (${response.statusCode})';
       try {
@@ -191,7 +200,7 @@ class GeminiService extends AIServiceBase {
       String textResponse = '';
       Uint8List? imageResponse;
       if (jsonResponse.containsKey('promptFeedback')){
-        print(jsonResponse['promptFeedback']);
+        // print(jsonResponse['promptFeedback']);
         textResponse += jsonResponse['promptFeedback']['blockReason'] ?? '';
       }
 
@@ -222,7 +231,8 @@ class GeminiService extends AIServiceBase {
                     imageResponse = base64Decode(inlineData['data']);
                     await saveGeneratedImage(imageResponse);
                   } catch (e) {
-                    print('Error decoding image data: $e');
+                    // Production code shouldn't use print statements
+                    // print('Error decoding image data: $e');
                   }
                 }
               }
@@ -237,17 +247,13 @@ class GeminiService extends AIServiceBase {
         'usage': usageMetadata,
       };
     } catch (e) {
-      print('Error parsing Gemini API response: $e');
+      // Production code shouldn't use print statements
+      // print('Error parsing Gemini API response: $e');
       return {
         'text': 'Error processing response from Gemini API',
         'image': null,
       };
     }
-  }
-
-  @override
-  Future<Map<String, dynamic>> analyzeImages(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes, {Map<String, dynamic>? config}) async {
-    return analyzeImage(prompt, imageBytesList, mimeTypes, config: config);
   }
 
   @override

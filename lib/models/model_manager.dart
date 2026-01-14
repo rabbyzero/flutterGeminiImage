@@ -32,6 +32,22 @@ class ModelManager {
       .toSet()
       .toList();
 
+  /// Get all available platforms (for the UI selector)
+  List<String> getAvailablePlatforms() {
+    return _models.values
+        .map((model) => model.platform)
+        .toSet()
+        .toList();
+  }
+
+  /// Get all available models for a specific platform (for the UI selector)
+  List<String> getAvailableModelsForPlatform(String platform) {
+    return _models.values
+        .where((model) => model.platform == platform)
+        .map((model) => model.displayName)
+        .toList();
+  }
+
   /// Get all models for a specific platform
   List<AIModelInterface> getModelsForPlatform(String platform) {
     return _models.values

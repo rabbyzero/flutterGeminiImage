@@ -67,10 +67,9 @@ abstract class AIServiceBase implements AIModelInterface {
                 SocksTCPClient.assignToHttpClient(ioClient, [
                   ProxySettings(endpoints.first, port, password: password, username: username),
                 ]);
-                print('Using proxy for $platform: $host:$port');
               }
             } catch (e) {
-              print('Failed to resolve proxy host: $e');
+              // Handle error silently
             }
           }
 
@@ -78,7 +77,7 @@ abstract class AIServiceBase implements AIModelInterface {
         }
       } catch (e) {
         // Proxy file might not exist or be readable, ignore.
-        print('Proxy config ignored or empty: $e');
+        // Removed debug print statement
       }
 
       _httpClient = httpClient;
@@ -125,7 +124,7 @@ abstract class AIServiceBase implements AIModelInterface {
         if (home != null) {
           dirPath = '$home/Pictures/ai';
         } else {
-          print('Could not determine home directory. Image not saved.');
+          // Silently fail if home directory cannot be determined
           return;
         }
       }
@@ -139,16 +138,9 @@ abstract class AIServiceBase implements AIModelInterface {
       final filePath = '$dirPath/${platform.toLowerCase()}_gen_$timestamp.png';
       final file = File(filePath);
       await file.writeAsBytes(imageBytes);
-      print('Saved generated image to: $filePath');
     } catch (e) {
-      print('Failed to save image: $e');
+      // Silently handle save errors
     }
   }
 
-  /// Common method to save images from response
-  Future<Uint8List?> _extractImageFromResponse(dynamic response) async {
-    // Implementation will depend on the specific AI platform's response format
-    // This is a placeholder that should be overridden by subclasses if needed
-    return null;
-  }
 }

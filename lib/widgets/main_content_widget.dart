@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'generation_config_widget.dart';
 import 'action_buttons_widget.dart';
-import 'image_display_widget.dart';
 import 'prompt_input_widget.dart';
+import 'image_selection_widget.dart';
 
 class MainContentWidget extends StatelessWidget {
   final List<Uint8List> imageBytesList;
@@ -37,19 +37,11 @@ class MainContentWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          height: 300,
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey),
-            borderRadius: BorderRadius.circular(12),
-            color: Colors.grey[200],
-          ),
-          child: ImageDisplayWidget(
-            imageBytesList: imageBytesList,
-            images: images,
-            onImageTap: onImageTap,
-            onRemoveImage: onRemoveImage,
-          ),
+        ImageSelectionWidget(
+          imageBytesList: imageBytesList,
+          images: images,
+          onImageTap: onImageTap,
+          onRemoveImage: onRemoveImage,
         ),
         const SizedBox(height: 16),
         GenerationConfigWidget(onConfigChanged: onConfigChanged),

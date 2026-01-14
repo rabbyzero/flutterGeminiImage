@@ -11,6 +11,9 @@ class OpenAIService extends AIServiceBase {
   @override
   String get modelName => 'GPT-4 Vision';
   
+  @override
+  String get displayName => '$platform - $modelName';
+  
   final String baseUrl = 'https://api.openai.com/v1/chat/completions';
 
   OpenAIService({required super.saveDirectory});
@@ -51,10 +54,11 @@ class OpenAIService extends AIServiceBase {
   }
 
   @override
-  Future<Map<String, dynamic>> analyzeImage(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes) async {
-    print('Sending request to OpenAI API...');
-    print('Number of images: ${imageBytesList.length}');
-    print('Prompt: $prompt');
+  Future<Map<String, dynamic>> analyzeImages(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes, {Map<String, dynamic>? config}) async {
+    // Production code shouldn't use print statements
+    // print('Sending request to OpenAI API...');
+    // print('Number of images: ${imageBytesList.length}');
+    // print('Prompt: $prompt');
 
     // Prepare request headers
     final headers = {
@@ -65,7 +69,7 @@ class OpenAIService extends AIServiceBase {
     // Prepare request body
     final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes);
 
-    print('Request body size: ${requestBody.length} characters');
+    // print('Request body size: ${requestBody.length} characters');
 
     // Send the request using the base class http client
     http.Response response;
@@ -75,32 +79,36 @@ class OpenAIService extends AIServiceBase {
         headers: headers,
         body: requestBody,
       );
-    } on SocketException catch (e) {
-      print('Network error: $e');
+    } on SocketException catch (_) {
+      // Production code shouldn't use print statements
+      // print('Network error: $e');
       return {
         'error': 'Network connection failed. Please check your internet connection.',
         'text': null,
         'image': null,
       };
-    } on HandshakeException catch (e) {
-      print('SSL/TLS error: $e');
+    } on HandshakeException catch (_) {
+      // Production code shouldn't use print statements
+      // print('SSL/TLS error: $e');
       return {
         'error': 'Secure connection failed. Please check your network settings.',
         'text': null,
         'image': null,
       };
-    } catch (e) {
-      print('Request failed: $e');
+    } catch (_) {
+      // Production code shouldn't use print statements
+      // print('Request failed: $e');
       return {
-        'error': 'Request failed: $e',
+        'error': 'Request failed',
         'text': null,
         'image': null,
       };
     }
 
-    print('OpenAI API response status: ${response.statusCode}');
+    // Production code shouldn't use print statements
+    // print('OpenAI API response status: ${response.statusCode}');
     if (response.statusCode != 200) {
-      print('OpenAI API error: ${response.body}');
+      // print('OpenAI API error: ${response.body}');
       return {
         'error': 'API Error (${response.statusCode}): ${response.body}',
         'text': 'Error: ${response.statusCode} - ${response.body}',
@@ -127,22 +135,13 @@ class OpenAIService extends AIServiceBase {
         'image': imageResponse,
       };
     } catch (e) {
-      print('Error parsing OpenAI API response: $e');
+      // Production code shouldn't use print statements
+      // print('Error parsing OpenAI API response: $e');
       return {
         'text': 'Error processing response from OpenAI API',
         'image': null,
       };
     }
-  }
-
-  @override
-  Future<Map<String, dynamic>> analyzeImages(
-    String prompt,
-    List<Uint8List> imageBytesList,
-    List<String?> mimeTypes, {
-    Map<String, dynamic>? config,
-  }) async {
-    return analyzeImage(prompt, imageBytesList, mimeTypes);
   }
 
   @override

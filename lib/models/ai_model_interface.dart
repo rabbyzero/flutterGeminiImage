@@ -7,6 +7,9 @@ abstract class AIModelInterface {
 
   /// The platform the model belongs to (e.g., 'Gemini', 'OpenAI', 'Anthropic')
   String get platform;
+  
+  /// Display name for the model in format "platform - modelName"
+  String get displayName => '$platform - $modelName';
 
   /// Initialize the AI model service
   Future<void> initialize();

@@ -123,33 +123,22 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
         _isLoading = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(resultMap['error']),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'Dismiss',
-            onPressed: () {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            },
-            textColor: Colors.white,
-          ),
-        ),
-      );
+      ErrorSnackbar.showError(context, message: resultMap['error']);
       return;
     }
 
     final resultText = resultMap['text'] as String?;
     final resultImage = resultMap['image'] as Uint8List?;
     if (resultImage == null) {
-      for(var k in resultMap.keys) {
-        print('${k} ${resultMap[k]}');
-      }
+      // Production code shouldn't use print statements
+      // for(var k in resultMap.keys) {
+      //   print('$k ${resultMap[k]}');
+      // }
     }
 
 
-    print('Analysis result received: text=${resultText?.substring(0, (resultText.length > 20 ? 20 : resultText.length))}..., image=${resultImage?.length} bytes');
+    // Production code shouldn't use print statements
+    // print('Analysis result received: text=${resultText?.substring(0, (resultText.length > 20 ? 20 : resultText.length))}..., image=${resultImage?.length} bytes');
 
     if (!mounted) return;
 
@@ -166,7 +155,8 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     });
 
     if (_lastResult != null) {
-      print('Navigating to ResultPage');
+      // Production code shouldn't use print statements
+      // print('Navigating to ResultPage');
       _navigateToResult();
     }
   }
@@ -198,23 +188,10 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('AI Image Assistant'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          ModelSelectorWidget(
-            modelManager: _modelManager,
-            onModelSelected: (String platform, String model) {
-              _modelManager.setActiveModel(platform, model);
-            },
-          ),
-          if (_lastResult != null)
-            IconButton(
-              onPressed: _navigateToResult,
-              icon: const Icon(Icons.arrow_forward),
-              tooltip: 'Show Last Result',
-            ),
-        ],
+      appBar: ImageEditorAppBar(
+        modelManager: _modelManager,
+        navigateToResult: _navigateToResult,
+        hasLastResult: _lastResult != null,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
