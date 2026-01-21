@@ -59,6 +59,10 @@ class OpenAIService extends AIServiceBase {
     // print('Sending request to OpenAI API...');
     // print('Number of images: ${imageBytesList.length}');
     // print('Prompt: $prompt');
+    
+    if (config != null && config.containsKey('proxy')) {
+       await updateClientProxy(config['proxy'] as String?);
+    }
 
     // Prepare request headers
     final headers = {
@@ -85,7 +89,7 @@ class OpenAIService extends AIServiceBase {
       return {
         'error': 'Network connection failed. Please check your internet connection.',
         'text': null,
-        'image': null,
+        'images': <Uint8List>[],
       };
     } on HandshakeException catch (_) {
       // Production code shouldn't use print statements
@@ -93,7 +97,7 @@ class OpenAIService extends AIServiceBase {
       return {
         'error': 'Secure connection failed. Please check your network settings.',
         'text': null,
-        'image': null,
+        'images': <Uint8List>[],
       };
     } catch (_) {
       // Production code shouldn't use print statements
@@ -101,7 +105,7 @@ class OpenAIService extends AIServiceBase {
       return {
         'error': 'Request failed',
         'text': null,
-        'image': null,
+        'images': <Uint8List>[],
       };
     }
 
@@ -112,7 +116,7 @@ class OpenAIService extends AIServiceBase {
       return {
         'error': 'API Error (${response.statusCode}): ${response.body}',
         'text': 'Error: ${response.statusCode} - ${response.body}',
-        'image': null,
+        'images': <Uint8List>[],
       };
     }
 
@@ -127,19 +131,18 @@ class OpenAIService extends AIServiceBase {
       }
       
       // Extract image if present in response
-      Uint8List? imageResponse;
       // Note: GPT-4 Vision typically doesn't return generated images, only text responses
       
       return {
         'text': textResponse,
-        'image': imageResponse,
+        'images': <Uint8List>[],
       };
     } catch (e) {
       // Production code shouldn't use print statements
       // print('Error parsing OpenAI API response: $e');
       return {
         'text': 'Error processing response from OpenAI API',
-        'image': null,
+        'images': <Uint8List>[],
       };
     }
   }

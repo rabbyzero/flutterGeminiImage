@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'data/history_item.dart';
+import 'models/history_item.dart';
 import 'widgets/widgets.dart';
 import 'image_editor_page.dart';
 
 class ResultPage extends StatelessWidget {
   final List<Uint8List>? originalImageBytesList;
-  final Uint8List? generatedImageBytes;
+  final List<Uint8List>? generatedImageBytesList;
   final String text;
   final String? thought;
   final Map<String, dynamic>? usage;
@@ -15,7 +15,7 @@ class ResultPage extends StatelessWidget {
   const ResultPage({
     super.key,
     this.originalImageBytesList,
-    this.generatedImageBytes,
+    this.generatedImageBytesList,
     required this.text,
     this.thought,
     this.usage,
@@ -59,7 +59,7 @@ class ResultPage extends StatelessWidget {
             MaterialPageRoute(
               builder: (context) => ResultPage(
                 originalImageBytesList: item.originalImages,
-                generatedImageBytes: item.generatedImage,
+                generatedImageBytesList: item.generatedImages,
                 text: item.text,
                 usage: item.usage,
                 thought: item.thought,
@@ -93,10 +93,10 @@ class ResultPage extends StatelessWidget {
           children: [
             ImageListWidget(
               originalImageBytesList: originalImageBytesList,
-              generatedImageBytes: generatedImageBytes,
+              generatedImageBytesList: generatedImageBytesList,
               onImagePressed: (imageBytes, title) => _showImageDialog(context, imageBytes, title),
             ),
-            if ((originalImageBytesList != null && originalImageBytesList!.isNotEmpty) || generatedImageBytes != null)
+            if ((originalImageBytesList != null && originalImageBytesList!.isNotEmpty) || (generatedImageBytesList != null && generatedImageBytesList!.isNotEmpty))
               const SizedBox(height: 24),
             
             if (thought != null && thought!.isNotEmpty) ...[

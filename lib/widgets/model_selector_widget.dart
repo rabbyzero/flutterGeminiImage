@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/model_manager.dart';
+import '../services/model_manager.dart';
 
 class ModelSelectorWidget extends StatelessWidget {
   final ModelManager modelManager;

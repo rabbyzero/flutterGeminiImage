@@ -1,9 +1,10 @@
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
-import 'models/models.dart';
-import 'data/history_item.dart';
+import 'services/services.dart';
+import 'models/history_item.dart';
 import 'widgets/widgets.dart';
 import 'result_page.dart';
 
@@ -100,6 +101,49 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     }
   }
 
+  Future<void> _saveProxyConfig(String proxy) async {
+    try {
+      final file = File('assets/proxy.txt');
+      String content = '';
+      if (await file.exists()) {
+        content = await file.readAsString();
+      }
+      
+      final lines = content.split('\n');
+      final newLines = <String>[];
+      bool updated = false;
+      bool foundExisting = false;
+
+      for (var line in lines) {
+        if (line.trim().startsWith('#') || line.trim().isEmpty) {
+           newLines.add(line);
+        } else {
+          if (!foundExisting) {
+            String currentProxy = line.trim();
+            if (currentProxy != proxy) {
+              newLines.add(proxy);
+              updated = true;
+            } else {
+              newLines.add(line);
+            }
+            foundExisting = true;
+          }
+        }
+      }
+
+      if (!foundExisting) {
+        newLines.add(proxy);
+        updated = true;
+      }
+
+      if (updated) {
+        await file.writeAsString(newLines.join('\n'));
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
+
   Future<void> _analyzeImage() async {
     if (_modelManager.activeModel == null) {
       if (!mounted) return;
@@ -116,6 +160,11 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     String prompt = _promptController.text.trim();
     if (prompt.isEmpty) {
       prompt = _imageBytesList.isNotEmpty ? 'Describe these images in detail.' : 'Hello, who are you?';
+    }
+    
+    // Save proxy if present in config
+    if (_generationConfig.containsKey('proxy')) {
+      await _saveProxyConfig(_generationConfig['proxy'] as String);
     }
 
     List<String?> mimeTypes = [];
@@ -145,8 +194,8 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     }
 
     final resultText = resultMap['text'] as String?;
-    final resultImage = resultMap['image'] as Uint8List?;
-    if (resultImage == null) {
+    final resultImages = (resultMap['images'] as List<dynamic>?)?.cast<Uint8List>() ?? <Uint8List>[];
+    if (resultImages.isEmpty) {
       // Production code shouldn't use print statements
       // for(var k in resultMap.keys) {
       //   print('$k ${resultMap[k]}');
@@ -155,17 +204,17 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
 
 
     // Production code shouldn't use print statements
-    // print('Analysis result received: text=${resultText?.substring(0, (resultText.length > 20 ? 20 : resultText.length))}..., image=${resultImage?.length} bytes');
+    // print('Analysis result received: text=${resultText?.substring(0, (resultText.length > 20 ? 20 : resultText.length))}..., images=${resultImages.length}');
 
     if (!mounted) return;
 
     setState(() {
         _isLoading = false;
-        if (resultText != null || resultImage != null) {
+        if (resultText != null || resultImages.isNotEmpty) {
            _lastResult = {
              'text': resultText ?? '',
              'originalImages': _imageBytesList,
-             'generatedImage': resultImage,
+             'generatedImages': resultImages,
              'usage': resultMap['usage'],
              'thought': resultMap['thought'],
            };
@@ -177,7 +226,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
              prompt: prompt,
              originalImages: List.from(_imageBytesList),
              text: resultText ?? '',
-             generatedImage: resultImage,
+             generatedImages: resultImages,
              thought: resultMap['thought'],
              usage: resultMap['usage'],
            ));
@@ -197,7 +246,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
         MaterialPageRoute(
           builder: (context) => ResultPage(
             originalImageBytesList: _lastResult!['originalImages'],
-            generatedImageBytes: _lastResult!['generatedImage'],
+            generatedImageBytesList: _lastResult!['generatedImages'],
             text: _lastResult!['text'],
             usage: _lastResult!['usage'],
             thought: _lastResult!['thought'],
@@ -242,7 +291,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
             MaterialPageRoute(
               builder: (context) => ResultPage(
                 originalImageBytesList: item.originalImages,
-                generatedImageBytes: item.generatedImage,
+                generatedImageBytesList: item.generatedImages,
                 text: item.text,
                 usage: item.usage,
                 thought: item.thought,

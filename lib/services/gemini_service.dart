@@ -79,8 +79,15 @@ class GeminiService extends AIServiceBase {
     // print('Sending request to Gemini API...');
     // print('Number of images: ${imageBytesList.length}');
     // print('Prompt: $prompt');
+    
+    Map<String, dynamic>? apiConfig;
     if (config != null) {
-      // print('Config: $config');
+      apiConfig = Map<String, dynamic>.from(config);
+      if (apiConfig.containsKey('proxy')) {
+        await updateClientProxy(apiConfig['proxy'] as String?);
+        apiConfig.remove('proxy');
+      }
+       // print('Config: $config');
     }
 
     // Prepare request headers
@@ -91,7 +98,7 @@ class GeminiService extends AIServiceBase {
     };
 
     // Prepare request body
-    final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes, config: config);
+    final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes, config: apiConfig);
     // print(baseUrl);
 
     // print('Request body size: ${requestBody.length} characters');
@@ -110,7 +117,7 @@ class GeminiService extends AIServiceBase {
       return {
         'error': 'Network connection failed. Please check your internet connection.',
         'text': null,
-        'image': null,
+        'images': <Uint8List>[],
       };
     } on HandshakeException catch (_) {
       // Production code shouldn't use print statements
@@ -118,7 +125,7 @@ class GeminiService extends AIServiceBase {
       return {
         'error': 'Secure connection failed. Please check your network settings.',
         'text': null,
-        'image': null,
+        'images': <Uint8List>[],
       };
     } catch (_) {
       // Production code shouldn't use print statements
@@ -126,7 +133,7 @@ class GeminiService extends AIServiceBase {
       return {
         'error': 'Request failed',
         'text': null,
-        'image': null,
+        'images': <Uint8List>[],
       };
     }
 
@@ -184,7 +191,7 @@ class GeminiService extends AIServiceBase {
       return {
         'error': userFriendlyMessage,
         'text': 'Error: $userFriendlyMessage',
-        'image': null,
+        'images': <Uint8List>[],
       };
     }
 
@@ -198,7 +205,7 @@ class GeminiService extends AIServiceBase {
       }
 
       String textResponse = '';
-      Uint8List? imageResponse;
+      List<Uint8List> imagesResponse = [];
       if (jsonResponse.containsKey('promptFeedback')){
         // print(jsonResponse['promptFeedback']);
         textResponse += jsonResponse['promptFeedback']['blockReason'] ?? '';
@@ -228,8 +235,9 @@ class GeminiService extends AIServiceBase {
               if (inlineData != null && inlineData is Map) {
                 if (inlineData.containsKey('data')) {
                   try {
-                    imageResponse = base64Decode(inlineData['data']);
-                    await saveGeneratedImage(imageResponse);
+                    final imageBytes = base64Decode(inlineData['data']);
+                    imagesResponse.add(imageBytes);
+                    await saveGeneratedImage(imageBytes);
                   } catch (e) {
                     // Production code shouldn't use print statements
                     // print('Error decoding image data: $e');
@@ -243,7 +251,7 @@ class GeminiService extends AIServiceBase {
       
       return {
         'text': textResponse,
-        'image': imageResponse,
+        'images': imagesResponse,
         'usage': usageMetadata,
       };
     } catch (e) {
@@ -251,7 +259,7 @@ class GeminiService extends AIServiceBase {
       // print('Error parsing Gemini API response: $e');
       return {
         'text': 'Error processing response from Gemini API',
-        'image': null,
+        'images': <Uint8List>[],
       };
     }
   }

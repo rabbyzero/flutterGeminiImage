@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 
 class ImageListWidget extends StatelessWidget {
   final List<Uint8List>? originalImageBytesList;
-  final Uint8List? generatedImageBytes;
+  final List<Uint8List>? generatedImageBytesList;
   final Function(Uint8List imageBytes, String title) onImagePressed;
 
   const ImageListWidget({
     super.key,
     this.originalImageBytesList,
-    this.generatedImageBytes,
+    this.generatedImageBytesList,
     required this.onImagePressed,
   });
 
@@ -59,30 +59,50 @@ class ImageListWidget extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
-        if (generatedImageBytes != null) ...[
+        if (generatedImageBytesList != null && generatedImageBytesList!.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
             child: Text(
-              'Generated Image',
+              'Generated Images (${generatedImageBytesList!.length})',
               style: Theme.of(context).textTheme.titleSmall,
             ),
           ),
-          GestureDetector(
-            onTap: () => onImagePressed(generatedImageBytes!, 'Generated Image'),
-            child: Container(
-              constraints: const BoxConstraints(maxHeight: 300),
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.5), width: 2),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.memory(
-                  generatedImageBytes!,
-                  fit: BoxFit.contain,
-                ),
-              ),
+          SizedBox(
+            height: 120,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: generatedImageBytesList!.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () => onImagePressed(
+                    generatedImageBytesList![index],
+                    'Generated Image ${index + 1}',
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(
+                        generatedImageBytesList![index],
+                        height: 120,
+                        width: 120,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],

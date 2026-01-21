@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 
 class GenerationConfigWidget extends StatefulWidget {
   final ValueChanged<Map<String, dynamic>> onConfigChanged;
@@ -15,6 +16,7 @@ class GenerationConfigWidget extends StatefulWidget {
 class _GenerationConfigWidgetState extends State<GenerationConfigWidget> {
   final TextEditingController _aspectRatioController = TextEditingController(text: '');
   final TextEditingController _imageSizeController = TextEditingController(text: '');
+  final TextEditingController _proxyController = TextEditingController(text: '');
 
   void _updateConfig() {
     final Map<String, dynamic> config = {};
@@ -24,20 +26,48 @@ class _GenerationConfigWidgetState extends State<GenerationConfigWidget> {
     if (_imageSizeController.text.trim().isNotEmpty) {
       config['imageSize'] = _imageSizeController.text.trim();
     }
+    if (_proxyController.text.trim().isNotEmpty) {
+      config['proxy'] = _proxyController.text.trim();
+    }
     widget.onConfigChanged(config);
   }
 
   @override
   void initState() {
     super.initState();
+    _loadProxy();
     // Notify initial config
     WidgetsBinding.instance.addPostFrameCallback((_) => _updateConfig());
+  }
+
+  Future<void> _loadProxy() async {
+    try {
+      final file = File('assets/proxy.txt');
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final proxy = content.split('\n').firstWhere(
+              (line) => line.trim().isNotEmpty && !line.trim().startsWith('#'),
+              orElse: () => '',
+            ).trim();
+        if (proxy.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _proxyController.text = proxy;
+            });
+            _updateConfig();
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore error
+    }
   }
 
   @override
   void dispose() {
     _aspectRatioController.dispose();
     _imageSizeController.dispose();
+    _proxyController.dispose();
     super.dispose();
   }
 
@@ -71,7 +101,7 @@ class _GenerationConfigWidgetState extends State<GenerationConfigWidget> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: TextFormField(
-                    controller: _imageSizeController,
+                    controller: _imageSizeController, // Fixed variable
                     decoration: const InputDecoration(
                       labelText: 'Image Size',
                       hintText: 'e.g. 1k 2k 4k',
@@ -83,6 +113,18 @@ class _GenerationConfigWidgetState extends State<GenerationConfigWidget> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _proxyController,
+              decoration: const InputDecoration(
+                labelText: 'Proxy',
+                hintText: 'e.g. 127.0.0.1:7890',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                isDense: true,
+              ),
+              onChanged: (val) => _updateConfig(),
             ),
           ],
         ),

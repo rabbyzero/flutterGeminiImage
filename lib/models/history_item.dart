@@ -6,7 +6,7 @@ class HistoryItem {
   final String prompt;
   final List<Uint8List> originalImages;
   final String text;
-  final Uint8List? generatedImage;
+  final List<Uint8List> generatedImages;
   final String? thought;
   final Map<String, dynamic>? usage;
 
@@ -16,7 +16,7 @@ class HistoryItem {
     required this.prompt,
     required this.originalImages,
     required this.text,
-    this.generatedImage,
+    this.generatedImages = const [],
     this.thought,
     this.usage,
   });
