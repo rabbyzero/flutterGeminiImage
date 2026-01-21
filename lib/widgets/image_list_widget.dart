@@ -15,28 +15,77 @@ class ImageListWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (originalImageBytesList != null && originalImageBytesList!.isNotEmpty)
-          ...List.generate(originalImageBytesList!.length, (index) {
-            return ElevatedButton.icon(
-              onPressed: () => onImagePressed(
-                originalImageBytesList![index], 
-                'Original Image ${index + 1}'
-              ),
-              icon: const Icon(Icons.image),
-              label: Text('Original ${index + 1}'),
-            );
-          }),
-        if (generatedImageBytes != null)
-          ElevatedButton.icon(
-            onPressed: () => onImagePressed(generatedImageBytes!, 'Generated Image'),
-            icon: const Icon(Icons.auto_awesome),
-            label: const Text('View Generated'),
+        if (originalImageBytesList != null && originalImageBytesList!.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Text(
+              'Original Images (${originalImageBytesList!.length})',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
           ),
+          SizedBox(
+            height: 120,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: originalImageBytesList!.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () => onImagePressed(
+                    originalImageBytesList![index],
+                    'Original Image ${index + 1}',
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(
+                        originalImageBytesList![index],
+                        height: 120,
+                        width: 120,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (generatedImageBytes != null) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Text(
+              'Generated Image',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          ),
+          GestureDetector(
+            onTap: () => onImagePressed(generatedImageBytes!, 'Generated Image'),
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 300),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.5), width: 2),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.memory(
+                  generatedImageBytes!,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

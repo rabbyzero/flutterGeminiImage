@@ -12,3 +12,4 @@ export 'error_snackbar_widget.dart';
 export 'image_editor_app_bar_widget.dart';
 export 'image_selection_widget.dart';
 export 'token_usage_display_widget.dart';
+export 'history_sheet.dart';

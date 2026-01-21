@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 class ImageDialogWidget extends StatelessWidget {
   final Uint8List imageBytes;
   final String title;
+  final VoidCallback? onUseImage;
 
   const ImageDialogWidget({
     super.key,
     required this.imageBytes,
     this.title = 'Image Preview',
+    this.onUseImage,
   });
 
   @override
@@ -22,6 +24,15 @@ class ImageDialogWidget extends StatelessWidget {
             title: Text(title),
             automaticallyImplyLeading: false,
             actions: [
+              if (onUseImage != null)
+                TextButton.icon(
+                  onPressed: onUseImage,
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Use Image'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
               IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: () => Navigator.of(context).pop(),

@@ -4,14 +4,12 @@ import 'model_selector_widget.dart';
 
 class ImageEditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   final ModelManager modelManager;
-  final VoidCallback? navigateToResult;
-  final bool hasLastResult;
+  final VoidCallback? onHistoryPressed;
 
   const ImageEditorAppBar({
     super.key,
     required this.modelManager,
-    this.navigateToResult,
-    this.hasLastResult = false,
+    this.onHistoryPressed,
   });
 
   @override
@@ -26,12 +24,11 @@ class ImageEditorAppBar extends StatelessWidget implements PreferredSizeWidget {
             modelManager.setActiveModel(platform, model);
           },
         ),
-        if (hasLastResult)
-          IconButton(
-            onPressed: navigateToResult,
-            icon: const Icon(Icons.arrow_forward),
-            tooltip: 'Show Last Result',
-          ),
+        IconButton(
+          onPressed: onHistoryPressed,
+          icon: const Icon(Icons.history),
+          tooltip: 'Show History',
+        ),
       ],
     );
   }

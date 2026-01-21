@@ -1,25 +1,74 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'data/history_item.dart';
 import 'widgets/widgets.dart';
+import 'image_editor_page.dart';
 
 class ResultPage extends StatelessWidget {
   final List<Uint8List>? originalImageBytesList;
   final Uint8List? generatedImageBytes;
   final String text;
+  final String? thought;
   final Map<String, dynamic>? usage;
+  final List<HistoryItem> history; // Add history parameter
 
   const ResultPage({
     super.key,
     this.originalImageBytesList,
     this.generatedImageBytes,
     required this.text,
+    this.thought,
     this.usage,
+    this.history = const [], // Default to empty list
   });
 
   void _showImageDialog(BuildContext context, Uint8List imageBytes, String title) {
     showDialog(
       context: context,
-      builder: (context) => ImageDialogWidget(imageBytes: imageBytes, title: title),
+      builder: (context) => ImageDialogWidget(
+        imageBytes: imageBytes, 
+        title: title,
+        onUseImage: () {
+          Navigator.pop(context); // Close dialog
+          // Navigate to new editor page
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ImageEditorPage(
+                initialImageBytes: [imageBytes],
+                initialHistory: history,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showHistory(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (context) => HistorySheet(
+        history: history,
+        onItemSelected: (item) {
+          Navigator.pop(context); // Close sheet
+          // Navigate to new result page (replace current one)
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => ResultPage(
+                originalImageBytesList: item.originalImages,
+                generatedImageBytes: item.generatedImage,
+                text: item.text,
+                usage: item.usage,
+                thought: item.thought,
+                history: history, // Pass history along
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -29,6 +78,13 @@ class ResultPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Gemini Response'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+           IconButton(
+            onPressed: () => _showHistory(context),
+            icon: const Icon(Icons.history),
+            tooltip: 'Show History',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -42,6 +98,24 @@ class ResultPage extends StatelessWidget {
             ),
             if ((originalImageBytesList != null && originalImageBytesList!.isNotEmpty) || generatedImageBytes != null)
               const SizedBox(height: 24),
+            
+            if (thought != null && thought!.isNotEmpty) ...[
+              Card(
+                margin: const EdgeInsets.only(bottom: 24),
+                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                child: ExpansionTile(
+                  leading: const Icon(Icons.psychology),
+                  title: const Text('Thinking Process'),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: MarkdownDisplayWidget(text: thought!),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             MarkdownDisplayWidget(text: text),
             if (usage != null) ...[
               const SizedBox(height: 24),

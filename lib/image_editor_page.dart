@@ -2,14 +2,20 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
-import 'models/model_manager.dart';
-import 'models/gemini_service.dart';
-import 'models/openai_service.dart';
+import 'models/models.dart';
+import 'data/history_item.dart';
 import 'widgets/widgets.dart';
 import 'result_page.dart';
 
 class ImageEditorPage extends StatefulWidget {
-  const ImageEditorPage({super.key});
+  final List<Uint8List>? initialImageBytes;
+  final List<HistoryItem>? initialHistory;
+
+  const ImageEditorPage({
+    super.key,
+    this.initialImageBytes,
+    this.initialHistory,
+  });
 
   @override
   State<ImageEditorPage> createState() => _ImageEditorPageState();
@@ -23,6 +29,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   
   List<XFile> _images = [];
   List<Uint8List> _imageBytesList = [];
+  final List<HistoryItem> _history = [];
   bool _isLoading = false;
   Map<String, dynamic>? _lastResult;
   Map<String, dynamic> _generationConfig = {};
@@ -31,6 +38,16 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   void initState() {
     super.initState();
     _initializeServices();
+     if (widget.initialHistory != null) {
+      _history.addAll(widget.initialHistory!);
+    }
+    if (widget.initialImageBytes != null) {
+      _imageBytesList.addAll(widget.initialImageBytes!);
+      for (var bytes in widget.initialImageBytes!) {
+        final mimeType = lookupMimeType('', headerBytes: bytes) ?? 'image/jpeg';
+         _images.add(XFile.fromData(bytes, mimeType: mimeType));
+      }
+    }
   }
 
   Future<void> _initializeServices() async {
@@ -150,7 +167,20 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
              'originalImages': _imageBytesList,
              'generatedImage': resultImage,
              'usage': resultMap['usage'],
+             'thought': resultMap['thought'],
            };
+
+           // Add to history
+           _history.insert(0, HistoryItem(
+             id: DateTime.now().millisecondsSinceEpoch.toString(),
+             timestamp: DateTime.now(),
+             prompt: prompt,
+             originalImages: List.from(_imageBytesList),
+             text: resultText ?? '',
+             generatedImage: resultImage,
+             thought: resultMap['thought'],
+             usage: resultMap['usage'],
+           ));
         }
     });
 
@@ -170,6 +200,8 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
             generatedImageBytes: _lastResult!['generatedImage'],
             text: _lastResult!['text'],
             usage: _lastResult!['usage'],
+            thought: _lastResult!['thought'],
+            history: _history,
           ),
         ),
       );
@@ -181,6 +213,44 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       builder: (context) => ImageDialogWidget(
         imageBytes: _imageBytesList[index],
         title: 'Image ${index + 1}',
+        onUseImage: () {
+          Navigator.pop(context);
+           Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ImageEditorPage(
+                initialImageBytes: [_imageBytesList[index]],
+                initialHistory: _history,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showHistory() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (context) => HistorySheet(
+        history: _history,
+        onItemSelected: (item) {
+          Navigator.pop(context);
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ResultPage(
+                originalImageBytesList: item.originalImages,
+                generatedImageBytes: item.generatedImage,
+                text: item.text,
+                usage: item.usage,
+                thought: item.thought,
+                history: _history,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -190,8 +260,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     return Scaffold(
       appBar: ImageEditorAppBar(
         modelManager: _modelManager,
-        navigateToResult: _navigateToResult,
-        hasLastResult: _lastResult != null,
+        onHistoryPressed: _showHistory,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
