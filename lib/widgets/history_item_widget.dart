@@ -6,10 +6,10 @@ class HistoryItemWidget extends StatelessWidget {
   final VoidCallback onTap;
 
   const HistoryItemWidget({
-    Key? key,
+    super.key,
     required this.item,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,7 @@ class HistoryItemWidget extends StatelessWidget {
         width: 50,
         height: 50,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceVariant,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(4),
         ),
         child: const Icon(Icons.title, size: 24),

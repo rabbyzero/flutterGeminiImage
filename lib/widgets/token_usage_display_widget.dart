@@ -18,7 +18,7 @@ class TokenUsageDisplayWidget extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: Card(
         elevation: 0,
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         shape: RoundedRectangleBorder(
           side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
           borderRadius: BorderRadius.circular(12),

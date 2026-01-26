@@ -1,10 +1,11 @@
-import 'dart:typed_data';
+// import 'dart:typed_data';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:socks5_proxy/socks_client.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:meta/meta.dart';
+// import 'package:meta/meta.dart';
 import 'ai_model_interface.dart';
 
 /// Base class for AI services that provides common functionality
@@ -55,11 +56,11 @@ abstract class AIServiceBase implements AIModelInterface {
           }
         } catch (e) {
           // Handle lookup error
-          print('Proxy lookup failed: $e');
+          debugPrint('Proxy lookup failed: $e');
         }
       }
     } catch (e) {
-      print('Proxy configuration failed: $e');
+      debugPrint('Proxy configuration failed: $e');
     }
     return null;
   }

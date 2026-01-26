@@ -102,7 +102,7 @@ class ResultPage extends StatelessWidget {
             if (thought != null && thought!.isNotEmpty) ...[
               Card(
                 margin: const EdgeInsets.only(bottom: 24),
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 child: ExpansionTile(
                   leading: const Icon(Icons.psychology),
                   title: const Text('Thinking Process'),
