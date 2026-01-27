@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
+import '../utils/curl_generator.dart';
 import 'ai_service_base.dart';
 
 class GeminiService extends AIServiceBase {
@@ -108,9 +109,15 @@ class GeminiService extends AIServiceBase {
     final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes, config: apiConfig);
     
     // Generate curl command
-    final curlHeaders = Map<String, String>.from(headers);
-    curlHeaders['x-goog-api-key'] = '\$(cat assets/api_key.txt)';
-    final curlCommand = _generateCurlCommand('POST', baseUrl, curlHeaders, requestBody);
+    final curlCommand = CurlGenerator.generate(
+      method: 'POST', 
+      url: baseUrl, 
+      headers: headers, 
+      body: requestBody,
+      headerReplacements: {
+        'x-goog-api-key': '\$(cat assets/api_key.txt)',
+      },
+    );
 
     // Send the request using the base class http client
     http.Response response;
@@ -312,12 +319,8 @@ class GeminiService extends AIServiceBase {
       }
     }
     
-    // final apiKey = await _readApiKeyFromFile();
-    // For the CURL command, we use the file path instead of the actual key
-    // This assumes the user is running the command from the project root
-    // $(cat ...) works on POSIX shells (Linux/macOS/Git Bash)
     final headers = {
-      'x-goog-api-key': '\$(cat assets/api_key.txt)',
+      'x-goog-api-key': 'PLACEHOLDER', // Will be replaced by embedApiKey: true
       'Content-Type': 'application/json',
     };
     
@@ -337,27 +340,15 @@ class GeminiService extends AIServiceBase {
     final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes, config: bodyConfig);
     
     // We need to pass the proxy to _generateCurlCommand
-    return _generateCurlCommand('POST', baseUrl, headers, requestBody, proxyOverride: proxyToUse);
-  }
-
-  String _generateCurlCommand(String method, String url, Map<String, String> headers, String? body, {String? proxyOverride}) {
-    StringBuffer curlCmd = StringBuffer('curl -X $method "$url"');
-    
-    headers.forEach((key, value) {
-      curlCmd.write(' \\\n  -H "$key: $value"');
-    });
-
-    final proxy = proxyOverride ?? currentProxy;
-    if (proxy != null && proxy.isNotEmpty) {
-       curlCmd.write(' \\\n  --proxy "$proxy"');
-    }
-    
-    if (body != null) {
-      // Escape single quotes for shell safety if wrapping in single quotes
-      String escapedBody = body.replaceAll("'", "'\\''"); 
-      curlCmd.write(" \\\n  -d '$escapedBody'");
-    }
-
-    return curlCmd.toString();
+    return CurlGenerator.generate(
+      method: 'POST', 
+      url: baseUrl, 
+      headers: headers, 
+      body: requestBody,
+      proxy: proxyToUse ?? currentProxy,
+      headerReplacements: {
+        'x-goog-api-key': '\$(cat assets/api_key.txt)',
+      },
+    );
   }
 }
