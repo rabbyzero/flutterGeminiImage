@@ -108,7 +108,9 @@ class GeminiService extends AIServiceBase {
     final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes, config: apiConfig);
     
     // Generate curl command
-    final curlCommand = _generateCurlCommand('POST', baseUrl, headers, requestBody);
+    final curlHeaders = Map<String, String>.from(headers);
+    curlHeaders['x-goog-api-key'] = '\$(cat assets/api_key.txt)';
+    final curlCommand = _generateCurlCommand('POST', baseUrl, curlHeaders, requestBody);
 
     // Send the request using the base class http client
     http.Response response;
@@ -310,9 +312,12 @@ class GeminiService extends AIServiceBase {
       }
     }
     
-    final apiKey = await _readApiKeyFromFile();
+    // final apiKey = await _readApiKeyFromFile();
+    // For the CURL command, we use the file path instead of the actual key
+    // This assumes the user is running the command from the project root
+    // $(cat ...) works on POSIX shells (Linux/macOS/Git Bash)
     final headers = {
-      'x-goog-api-key': apiKey,
+      'x-goog-api-key': '\$(cat assets/api_key.txt)',
       'Content-Type': 'application/json',
     };
     
