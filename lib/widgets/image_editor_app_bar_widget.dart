@@ -5,11 +5,13 @@ import 'model_selector_widget.dart';
 class ImageEditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   final ModelManager modelManager;
   final VoidCallback? onHistoryPressed;
+  final VoidCallback? onModelChanged;
 
   const ImageEditorAppBar({
     super.key,
     required this.modelManager,
     this.onHistoryPressed,
+    this.onModelChanged,
   });
 
   @override
@@ -22,6 +24,7 @@ class ImageEditorAppBar extends StatelessWidget implements PreferredSizeWidget {
           modelManager: modelManager,
           onModelSelected: (String platform, String model) {
             modelManager.setActiveModel(platform, model);
+            onModelChanged?.call();
           },
         ),
         IconButton(

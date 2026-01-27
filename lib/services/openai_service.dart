@@ -153,4 +153,9 @@ class OpenAIService extends AIServiceBase {
     // Actual implementation would send a text-only request to the API
     return {'text': 'Generated text for: $prompt', 'image': null};
   }
+
+  @override
+  Future<String> getCurlCommand(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes, {Map<String, dynamic>? config}) async {
+    return "CURL command generation for OpenAI is not implemented yet.";
+  }
 }

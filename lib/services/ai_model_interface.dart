@@ -26,4 +26,12 @@ abstract class AIModelInterface {
   Future<Map<String, dynamic>> generateText(
     String prompt,
   );
+
+  /// Get CURL command for the request
+  Future<String> getCurlCommand(
+    String prompt,
+    List<Uint8List> imageBytesList,
+    List<String?> mimeTypes, {
+    Map<String, dynamic>? config,
+  });
 }

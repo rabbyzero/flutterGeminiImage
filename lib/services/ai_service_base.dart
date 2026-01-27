@@ -16,6 +16,8 @@ abstract class AIServiceBase implements AIModelInterface {
   bool _isInitialized = false;
   String? saveDirectory;
 
+  String? get currentProxy => _currentProxy;
+
   AIServiceBase({this.saveDirectory});
 
   /// Configure HTTP client with proxy

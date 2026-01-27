@@ -17,6 +17,7 @@ class MainContentWidget extends StatelessWidget {
   final Function(int) onImageTap;
   final Function(int) onRemoveImage;
   final ValueChanged<Map<String, dynamic>> onConfigChanged;
+  final String? curlCommand;
 
   const MainContentWidget({
     super.key,
@@ -30,6 +31,7 @@ class MainContentWidget extends StatelessWidget {
     required this.onImageTap,
     required this.onRemoveImage,
     required this.onConfigChanged,
+    this.curlCommand,
   });
 
   @override
@@ -56,6 +58,26 @@ class MainContentWidget extends StatelessWidget {
         PromptInputWidget(
           controller: promptController,
         ),
+         if (curlCommand != null && curlCommand!.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            child: ExpansionTile(
+              leading: const Icon(Icons.code),
+              title: const Text('Live CURL Preview'),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SelectableText(
+                    curlCommand!,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
       ],
     );

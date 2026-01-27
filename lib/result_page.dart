@@ -11,6 +11,7 @@ class ResultPage extends StatelessWidget {
   final String? thought;
   final Map<String, dynamic>? usage;
   final List<HistoryItem> history; // Add history parameter
+  final String? curl;
 
   const ResultPage({
     super.key,
@@ -20,6 +21,7 @@ class ResultPage extends StatelessWidget {
     this.thought,
     this.usage,
     this.history = const [], // Default to empty list
+    this.curl,
   });
 
   void _showImageDialog(BuildContext context, Uint8List imageBytes, String title) {
@@ -64,6 +66,7 @@ class ResultPage extends StatelessWidget {
                 usage: item.usage,
                 thought: item.thought,
                 history: history, // Pass history along
+                curl: item.curl,
               ),
             ),
           );
@@ -120,6 +123,27 @@ class ResultPage extends StatelessWidget {
             if (usage != null) ...[
               const SizedBox(height: 24),
               TokenUsageDisplayWidget(usage: usage),
+            ],
+            
+            if (curl != null && curl!.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Card(
+                margin: EdgeInsets.zero,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                child: ExpansionTile(
+                  leading: const Icon(Icons.code),
+                  title: const Text('CURL Command'),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: SelectableText(
+                        curl!,
+                        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ],
         ),

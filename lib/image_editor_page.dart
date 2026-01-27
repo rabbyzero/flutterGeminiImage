@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
@@ -34,10 +35,13 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   bool _isLoading = false;
   Map<String, dynamic>? _lastResult;
   Map<String, dynamic> _generationConfig = {};
+  String? _curlCommand;
+  Timer? _debounceTimer;
 
   @override
   void initState() {
     super.initState();
+    _promptController.addListener(_onPromptChanged);
     _initializeServices();
      if (widget.initialHistory != null) {
       _history.addAll(widget.initialHistory!);
@@ -48,6 +52,48 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
         final mimeType = lookupMimeType('', headerBytes: bytes) ?? 'image/jpeg';
          _images.add(XFile.fromData(bytes, mimeType: mimeType));
       }
+    }
+  }
+
+  void _onPromptChanged() {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), _updateCurlCommand);
+  }
+
+  Future<void> _updateCurlCommand() async {
+    if (_modelManager.activeModel == null) return;
+    
+    // Cancel any pending debounce timer since we are running now
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+
+    String prompt = _promptController.text.trim();
+    if (prompt.isEmpty) {
+      prompt = _imageBytesList.isNotEmpty ? 'Describe these images in detail.' : 'Hello, who are you?';
+    }
+
+    List<String?> mimeTypes = [];
+    for (var i = 0; i < _images.length; i++) {
+      String? mimeType = _images[i].mimeType;
+      mimeType ??= lookupMimeType(_images[i].path);
+      mimeType ??= 'image/jpeg';
+      mimeTypes.add(mimeType);
+    }
+
+    try {
+      final cmd = await _modelManager.activeModel!.getCurlCommand(
+        prompt,
+        _imageBytesList,
+        mimeTypes,
+        config: _generationConfig.isNotEmpty ? _generationConfig : null,
+      );
+      
+      if (mounted && cmd != _curlCommand) {
+        setState(() {
+          _curlCommand = cmd;
+        });
+      }
+    } catch (e) {
+      // ignore
     }
   }
 
@@ -78,10 +124,14 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     
     // Initialize all registered models
     await _modelManager.initializeAllModels();
+    
+    // Initial curl update
+    _updateCurlCommand();
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _promptController.dispose();
     super.dispose();
   }
@@ -98,6 +148,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
         _images = images;
         _imageBytesList = bytesList;
       });
+      _updateCurlCommand();
     }
   }
 
@@ -217,6 +268,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
              'generatedImages': resultImages,
              'usage': resultMap['usage'],
              'thought': resultMap['thought'],
+             'curl': resultMap['curl'],
            };
 
            // Add to history
@@ -229,6 +281,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
              generatedImages: resultImages,
              thought: resultMap['thought'],
              usage: resultMap['usage'],
+             curl: resultMap['curl'],
            ));
         }
     });
@@ -251,6 +304,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
             usage: _lastResult!['usage'],
             thought: _lastResult!['thought'],
             history: _history,
+            curl: _lastResult!['curl'],
           ),
         ),
       );
@@ -296,6 +350,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
                 usage: item.usage,
                 thought: item.thought,
                 history: _history,
+                curl: item.curl,
               ),
             ),
           );
@@ -310,6 +365,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       appBar: ImageEditorAppBar(
         modelManager: _modelManager,
         onHistoryPressed: _showHistory,
+        onModelChanged: _updateCurlCommand,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -327,12 +383,15 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
               _images.removeAt(index);
               _imageBytesList.removeAt(index);
             });
+            _updateCurlCommand();
           },
           onConfigChanged: (config) {
             setState(() {
               _generationConfig = config;
             });
+            _updateCurlCommand();
           },
+          curlCommand: _curlCommand,
         ),
       ),
     );

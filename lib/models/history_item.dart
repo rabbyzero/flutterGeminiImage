@@ -9,6 +9,7 @@ class HistoryItem {
   final List<Uint8List> generatedImages;
   final String? thought;
   final Map<String, dynamic>? usage;
+  final String? curl;
 
   HistoryItem({
     required this.id,
@@ -19,5 +20,6 @@ class HistoryItem {
     this.generatedImages = const [],
     this.thought,
     this.usage,
+    this.curl,
   });
 }

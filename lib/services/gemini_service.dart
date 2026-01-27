@@ -64,6 +64,13 @@ class GeminiService extends AIServiceBase {
       'contents': contents,
     };
 
+    // Only enable Google Search for Gemini 3 models (Gemini 2.5 Flash usage leads to 400 Bad Request)
+    if (_modelId.contains('gemini-3')) {
+      requestBody['tools'] = [
+        {'googleSearch': {}}
+      ];
+    }
+
     if (config != null) {
       requestBody['generationConfig'] = {
         'imageConfig': config,
@@ -99,9 +106,9 @@ class GeminiService extends AIServiceBase {
 
     // Prepare request body
     final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes, config: apiConfig);
-    // print(baseUrl);
-
-    // print('Request body size: ${requestBody.length} characters');
+    
+    // Generate curl command
+    final curlCommand = _generateCurlCommand('POST', baseUrl, headers, requestBody);
 
     // Send the request using the base class http client
     http.Response response;
@@ -118,6 +125,7 @@ class GeminiService extends AIServiceBase {
         'error': 'Network connection failed. Please check your internet connection.',
         'text': null,
         'images': <Uint8List>[],
+        'curl': curlCommand,
       };
     } on HandshakeException catch (_) {
       // Production code shouldn't use print statements
@@ -126,6 +134,7 @@ class GeminiService extends AIServiceBase {
         'error': 'Secure connection failed. Please check your network settings.',
         'text': null,
         'images': <Uint8List>[],
+        'curl': curlCommand,
       };
     } catch (_) {
       // Production code shouldn't use print statements
@@ -134,6 +143,7 @@ class GeminiService extends AIServiceBase {
         'error': 'Request failed',
         'text': null,
         'images': <Uint8List>[],
+        'curl': curlCommand,
       };
     }
 
@@ -192,6 +202,7 @@ class GeminiService extends AIServiceBase {
         'error': userFriendlyMessage,
         'text': 'Error: $userFriendlyMessage',
         'images': <Uint8List>[],
+        'curl': curlCommand,
       };
     }
 
@@ -212,8 +223,15 @@ class GeminiService extends AIServiceBase {
       }
 
 
+      Map<String, dynamic>? groundingMetadata;
+
       if (jsonResponse['candidates'] != null && jsonResponse['candidates'].isNotEmpty) {
         final candidate = jsonResponse['candidates'][0];
+        
+        if (candidate.containsKey('groundingMetadata')) {
+          groundingMetadata = candidate['groundingMetadata'];
+        }
+
         final content = candidate['content'];
 
         if (content == null) {
@@ -253,6 +271,8 @@ class GeminiService extends AIServiceBase {
         'text': textResponse,
         'images': imagesResponse,
         'usage': usageMetadata,
+        'groundingMetadata': groundingMetadata,
+        'curl': curlCommand,
       };
     } catch (e) {
       // Production code shouldn't use print statements
@@ -260,6 +280,7 @@ class GeminiService extends AIServiceBase {
       return {
         'text': 'Error processing response from Gemini API',
         'images': <Uint8List>[],
+        'curl': curlCommand,
       };
     }
   }
@@ -269,5 +290,69 @@ class GeminiService extends AIServiceBase {
     // For now, just return a placeholder
     // Actual implementation would send a text-only request to the API
     return {'text': 'Generated text for: $prompt', 'image': null};
+  }
+
+  @override
+  Future<String> getCurlCommand(String prompt, List<Uint8List> imageBytesList, List<String?> mimeTypes, {Map<String, dynamic>? config}) async {
+    Map<String, dynamic>? apiConfig;
+    if (config != null) {
+      apiConfig = Map<String, dynamic>.from(config);
+      // We don't necessarily need to update the actual client proxy here, 
+      // but we need to know what it would be. 
+      // For simplicity and consistency, let's assume the config reflects the desired state.
+      if (apiConfig.containsKey('proxy')) {
+        // We use the proxy from config for the curl command
+        // But we won't update the actual client here to avoid side effects during typing
+        // Instead we'll pass it temporarily if we refactor _generateCurlCommand 
+        // OR we just rely on _currentProxy if it was set elsewhere? 
+        // Actually, the user might type a proxy and expect the curl to update BEFORE running.
+        // So we should probably use the proxy from config if present.
+      }
+    }
+    
+    final apiKey = await _readApiKeyFromFile();
+    final headers = {
+      'x-goog-api-key': apiKey,
+      'Content-Type': 'application/json',
+    };
+    
+    // Using apiConfig from which proxy was removed if using the logic from analyzeImages
+    // But here we want to handle it slightly differently to not mutate client?
+    // Let's copy the logic but handle proxy explicitly for the string generation.
+
+    String? proxyToUse = config?['proxy'];
+    
+    // Create a body config that excludes the proxy key
+    Map<String, dynamic>? bodyConfig;
+    if (config != null) {
+      bodyConfig = Map<String, dynamic>.from(config);
+      bodyConfig.remove('proxy');
+    }
+
+    final requestBody = _prepareRequestBody(prompt, imageBytesList, mimeTypes, config: bodyConfig);
+    
+    // We need to pass the proxy to _generateCurlCommand
+    return _generateCurlCommand('POST', baseUrl, headers, requestBody, proxyOverride: proxyToUse);
+  }
+
+  String _generateCurlCommand(String method, String url, Map<String, String> headers, String? body, {String? proxyOverride}) {
+    StringBuffer curlCmd = StringBuffer('curl -X $method "$url"');
+    
+    headers.forEach((key, value) {
+      curlCmd.write(' \\\n  -H "$key: $value"');
+    });
+
+    final proxy = proxyOverride ?? currentProxy;
+    if (proxy != null && proxy.isNotEmpty) {
+       curlCmd.write(' \\\n  --proxy "$proxy"');
+    }
+    
+    if (body != null) {
+      // Escape single quotes for shell safety if wrapping in single quotes
+      String escapedBody = body.replaceAll("'", "'\\''"); 
+      curlCmd.write(" \\\n  -d '$escapedBody'");
+    }
+
+    return curlCmd.toString();
   }
 }
