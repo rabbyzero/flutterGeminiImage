@@ -113,6 +113,14 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       displayName: 'Gemini 3 Pro Preview',
     );
     _modelManager.registerModel(geminiPro);
+
+    // Register the Gemini 3.1 Flash service
+    final gemini31Flash = GeminiService(
+      saveDirectory: '~/Pictures/ai',
+      modelId: 'gemini-3.1-flash-image-preview', // User provided model ID
+      displayName: 'Gemini 3.1 Flash Preview',
+    );
+    _modelManager.registerModel(gemini31Flash);
     
     // Register the OpenAI service
     final openAIService = OpenAIService(saveDirectory: '~/Pictures/ai');
