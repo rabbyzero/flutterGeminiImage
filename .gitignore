@@ -44,3 +44,4 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 assets/api_key.txt
+assets/xai_api_key.txt

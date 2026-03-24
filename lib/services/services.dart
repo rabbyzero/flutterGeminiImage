@@ -5,4 +5,5 @@ export 'ai_model_interface.dart';
 export 'ai_service_base.dart';
 export 'model_manager.dart';
 export 'gemini_service.dart';
+export 'grok_service.dart';
 export 'openai_service.dart';

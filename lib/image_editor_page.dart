@@ -109,7 +109,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     // Register the Gemini 3 Pro service
     final geminiPro = GeminiService(
       saveDirectory: '~/Pictures/ai',
-      modelId: 'gemini-3-pro-image-preview', // User provided model ID
+      modelId: 'gemini-3-pro-image-preview',
       displayName: 'Gemini 3 Pro Preview',
     );
     _modelManager.registerModel(geminiPro);
@@ -117,7 +117,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     // Register the Gemini 3.1 Flash service
     final gemini31Flash = GeminiService(
       saveDirectory: '~/Pictures/ai',
-      modelId: 'gemini-3.1-flash-image-preview', // User provided model ID
+      modelId: 'gemini-3.1-flash-image-preview',
       displayName: 'Gemini 3.1 Flash Preview',
     );
     _modelManager.registerModel(gemini31Flash);
@@ -125,10 +125,22 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     // Register the OpenAI service
     final openAIService = OpenAIService(saveDirectory: '~/Pictures/ai');
     _modelManager.registerModel(openAIService);
-    
-    // Here you can register more services from other AI platforms
-    // final anthropicService = AnthropicService(saveDirectory: '~/Pictures/ai');
-    // _modelManager.registerModel(anthropicService);
+
+    // Register the Grok Imagine Image Pro service
+    final grokService = GrokService(
+      saveDirectory: '~/Pictures/ai',
+      modelId: 'grok-imagine-image-pro',
+      displayName: 'Grok Imagine Image Pro',
+    );
+    _modelManager.registerModel(grokService);
+
+    // Register the Grok Imagine Image service
+    final grokStandard = GrokService(
+      saveDirectory: '~/Pictures/ai',
+      modelId: 'grok-imagine-image',
+      displayName: 'Grok Imagine Image',
+    );
+    _modelManager.registerModel(grokStandard);
     
     // Initialize all registered models
     await _modelManager.initializeAllModels();
