@@ -86,11 +86,11 @@ abstract class AIServiceBase implements AIModelInterface {
 
     try {
       // Load API key from assets
-      final apiKey = await rootBundle.loadString('assets/api_key.txt');
+      final apiKey = await rootBundle.loadString('assets/gemini_api_key.txt');
       _apiKey = apiKey.trim();
 
       if (_apiKey!.isEmpty || _apiKey == 'YOUR_API_KEY_HERE') {
-        throw Exception('API Key not set in assets/api_key.txt');
+        throw Exception('API Key not set in assets/gemini_api_key.txt');
       }
 
       try {

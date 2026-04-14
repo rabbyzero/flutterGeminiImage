@@ -31,7 +31,7 @@ class GeminiService extends AIServiceBase {
 
   Future<String> _readApiKeyFromFile() async {
     try {
-      final apiKey = await rootBundle.loadString('assets/api_key.txt');
+      final apiKey = await rootBundle.loadString('assets/gemini_api_key.txt');
       return apiKey.trim();
     } catch (e) {
       // Production code shouldn't use print statements
@@ -115,7 +115,7 @@ class GeminiService extends AIServiceBase {
       headers: headers, 
       body: requestBody,
       headerReplacements: {
-        'x-goog-api-key': '\$(cat assets/api_key.txt)',
+        'x-goog-api-key': '\$(cat assets/gemini_api_key.txt)',
       },
     );
 
@@ -183,7 +183,7 @@ class GeminiService extends AIServiceBase {
           }
           break;
         case 401:
-          userFriendlyMessage = 'Unauthorized: Invalid API Key. Please check your assets/api_key.txt file.';
+          userFriendlyMessage = 'Unauthorized: Invalid API Key. Please check your assets/gemini_api_key.txt file.';
           break;
         case 403:
           userFriendlyMessage = 'Forbidden: Access denied.';
@@ -347,7 +347,7 @@ class GeminiService extends AIServiceBase {
       body: requestBody,
       proxy: proxyToUse ?? currentProxy,
       headerReplacements: {
-        'x-goog-api-key': '\$(cat assets/api_key.txt)',
+        'x-goog-api-key': '\$(cat assets/gemini_api_key.txt)',
       },
     );
   }

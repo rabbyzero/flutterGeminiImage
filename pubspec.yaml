@@ -64,7 +64,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/api_key.txt
+    - assets/gemini_api_key.txt
     - assets/xai_api_key.txt
     - assets/proxy.txt
 
