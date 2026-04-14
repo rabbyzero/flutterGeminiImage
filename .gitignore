@@ -43,5 +43,5 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-assets/api_key.txt
+assets/gemini_api_key.txt
 assets/xai_api_key.txt
